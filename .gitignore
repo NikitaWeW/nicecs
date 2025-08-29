@@ -1,0 +1,7 @@
+build
+install
+.vscode
+*.ini
+log
+docs
+CMakeUserPresets.json
