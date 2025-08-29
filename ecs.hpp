@@ -25,8 +25,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <cstdint>
 #include <bitset>
 #include <queue>
-#include <deque>
-#include <array>
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
@@ -35,8 +33,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <type_traits>
 #include <typeindex>
 #include <string>
-#include <atomic>
-#include <functional>
 #include <stdexcept>
 
 /*! \cond Doxygen_Suppress */
@@ -635,9 +631,8 @@ ECS_INLINE ecs::entity ecs::entity_manager::createEntity(signature signature)
     if(m_availableEntityIDs.empty())
         m_availableEntityIDs.push(m_nextID++);
 
-    m_signatures.emplace(entity, m_livingEntitiesCount);
+    m_signatures.emplace(entity, signature);
 
-    setSignature(entity, signature);
     return entity;
 }
 ECS_INLINE void ecs::entity_manager::destroyEntity(entity const &entity)
@@ -647,7 +642,7 @@ ECS_INLINE void ecs::entity_manager::destroyEntity(entity const &entity)
     --m_livingEntitiesCount;
     m_availableEntityIDs.push(entity);
     m_entities.erase(entity);
-    m_signatures[entity].reset();
+    m_signatures.remove(entity);
 }
 ECS_INLINE void ecs::entity_manager::setSignature(entity const &entity, signature signature)
 {
@@ -863,8 +858,8 @@ ECS_INLINE void ecs::registry::emplace(entity const &entity, Args&&... args)
     if(has<component_t>(entity)) 
         ECS_THROW(std::invalid_argument{"component to emplace already added!"});
 
-    m_entityManager.getSignature(entity).set(m_componentManager.getComponentID<component_t>(), true);
     m_componentManager.emplace<component_t>(entity, std::forward<Args>(args)...);
+    m_entityManager.getSignature(entity).set(m_componentManager.getComponentID<component_t>(), true);
 }
 template <typename component_t>
 ECS_INLINE void ecs::registry::add(entity const &entity, component_t const &component)
