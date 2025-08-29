@@ -10,7 +10,6 @@ An easy-to-integrate, header-only ECS library focused on simplicity, small footp
 - Sparse-set storage per component type  
 - Type-safe component registration and lookup  
 - Convenient views (include/exclude filters)  
-- User-defined systems with read/write signatures  
 
 ## Integration
 
