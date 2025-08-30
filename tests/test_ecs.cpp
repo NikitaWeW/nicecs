@@ -22,7 +22,8 @@ struct Health {
     bool operator==(Health const& o) const { return hp == o.hp; }
 };
 
-TEST_CASE("Create and validate entities", "[entity]") {
+TEST_CASE("Create and validate entities", "[entity][ecs]") 
+{
     ECS_PROFILE();
     ecs::registry reg;
 
@@ -44,7 +45,8 @@ TEST_CASE("Create and validate entities", "[entity]") {
     REQUIRE(std::find(all.begin(), all.end(), e1) != all.end());
     REQUIRE(std::find(all.begin(), all.end(), e2) != all.end());
 }
-TEST_CASE("emplace, has and get components", "[component]") {
+TEST_CASE("emplace, has and get components", "[component][ecs]") 
+{
     ECS_PROFILE();
     ecs::registry reg;
     auto e = reg.create<>();
@@ -63,7 +65,8 @@ TEST_CASE("emplace, has and get components", "[component]") {
     reg.get<Position>(e).x = 5.0f;
     REQUIRE(reg.get<Position>(e).x == 5.0f);
 }
-TEST_CASE("Remove components", "[component]") {
+TEST_CASE("Remove components", "[component][ecs]") 
+{
     ECS_PROFILE();
     ecs::registry reg;
     auto e = reg.create<>();
@@ -77,7 +80,8 @@ TEST_CASE("Remove components", "[component]") {
     // Removing again should throw out_of_range
     REQUIRE_THROWS_AS(reg.remove<Velocity>(e), std::out_of_range);
 }
-TEST_CASE("View entities by component signature", "[view]") {
+TEST_CASE("View entities by component signature", "[view][ecs]") 
+{
     ECS_PROFILE();
     ecs::registry reg;
 
@@ -107,7 +111,8 @@ TEST_CASE("View entities by component signature", "[view]") {
         REQUIRE(std::find(velOnly.begin(), velOnly.end(), c) != velOnly.end());
     }
 }
-TEST_CASE("Destroy entity and its components", "[destroy]") {
+TEST_CASE("Destroy entity and its components", "[destroy][ecs]") 
+{
     ECS_PROFILE();
     ecs::registry reg;
     auto e = reg.create<Position, Velocity>();
@@ -123,7 +128,8 @@ TEST_CASE("Destroy entity and its components", "[destroy]") {
     REQUIRE_THROWS_AS(reg.getSignature(e), std::invalid_argument);
     REQUIRE_THROWS_AS(reg.has<Position>(e), std::invalid_argument);
 }
-TEST_CASE("Invalid handles and double-add errors", "[errors]") {
+TEST_CASE("Invalid handles and double-add errors", "[errors][ecs]") 
+{
     ECS_PROFILE();
     ecs::registry reg;
     ecs::entity bad = 100001;
@@ -137,36 +143,43 @@ TEST_CASE("Invalid handles and double-add errors", "[errors]") {
     reg.add<Position>(e, Position{});
     REQUIRE_THROWS_AS(reg.add<Position>(e, Position{}), std::invalid_argument);
 }
-TEST_CASE("Basic entity creation and destruction", "[entity]") {
+TEST_CASE("Basic entity creation and destruction", "[entity][ecs]") 
+{
     ECS_PROFILE();
     ecs::registry registry;
 
-    SECTION("Create and validate") {
+    SECTION("Create and validate") 
+    {
         auto e = registry.create<>();
         REQUIRE(registry.valid(e));
     }
 
-    SECTION("Destroy and invalidate") {
+    SECTION("Destroy and invalidate") 
+    {
         auto e = registry.create<>();
         REQUIRE(registry.valid(e));
         registry.destroy(e);
         REQUIRE_FALSE(registry.valid(e));
     }
 
-    SECTION("Destroy invalid entity throws") {
+    SECTION("Destroy invalid entity throws") 
+    {
         REQUIRE_THROWS_AS(registry.destroy(9999u), std::invalid_argument);
     }
 }
-TEST_CASE("Component add / remove / access", "[component]") {
+TEST_CASE("Component add / remove / access", "[component][ecs]") 
+{
     ECS_PROFILE();
     ecs::registry registry;
     auto e = registry.create<>();
     
-    SECTION("Initially no component") {
+    SECTION("Initially no component") 
+    {
         REQUIRE_FALSE(registry.has<Position>(e));
     }
 
-    SECTION("Add, has, get, modify, remove") {
+    SECTION("Add, has, get, modify, remove") 
+    {
         registry.add<Position>(e, Position{1.5f, 2.5f});
         REQUIRE( registry.has<Position>(e) );
 
@@ -195,22 +208,26 @@ TEST_CASE("Component add / remove / access", "[component]") {
         REQUIRE_THROWS_AS(registry.get<Position>(e), std::out_of_range);
     }
 
-    SECTION("Adding duplicate component throws") {
+    SECTION("Adding duplicate component throws") 
+    {
         registry.add<Position>(e, Position{0,0});
         REQUIRE_THROWS_AS(registry.add<Position>(e, Position{0,0}), std::invalid_argument);
     }
 
-    SECTION("Removing non-existent component throws") {
+    SECTION("Removing non-existent component throws") 
+    {
         REQUIRE_THROWS_AS(registry.remove<Velocity>(e), std::out_of_range);
     }
 
-    SECTION("Access on invalid entity throws") {
+    SECTION("Access on invalid entity throws") 
+    {
         REQUIRE_THROWS_AS(registry.get<Position>(999u), std::invalid_argument);
         REQUIRE_THROWS_AS(registry.get<Position>(999u), std::invalid_argument);
         REQUIRE_THROWS_AS(registry.has<Position>(999u), std::invalid_argument);
     }
 }
-TEST_CASE("Views: include and exclude semantics", "[view]") {
+TEST_CASE("Views: include and exclude semantics", "[view][ecs]") 
+{
     ECS_PROFILE();
     ecs::registry registry;
 
@@ -219,33 +236,38 @@ TEST_CASE("Views: include and exclude semantics", "[view]") {
     auto e3 = registry.create<Position, Velocity>(Position{3,3}, Velocity{0.5f,0.5f});
     auto e4 = registry.create<Velocity>(Velocity{9,9});
 
-    SECTION("Include only Position") {
+    SECTION("Include only Position") 
+    {
         auto viewPos = registry.view<Position>();
         std::vector<ecs::entity> got(viewPos.begin(), viewPos.end());
         std::sort(got.begin(), got.end());
         REQUIRE( got == std::vector<ecs::entity>{e1, e2, e3} );
     }
 
-    SECTION("Include Position, exclude Velocity") {
+    SECTION("Include Position, exclude Velocity") 
+    {
         auto viewPosNoVel = registry.view<Position>(ecs::exclude_t<Velocity>{});
         std::vector<ecs::entity> got(viewPosNoVel.begin(), viewPosNoVel.end());
         std::sort(got.begin(), got.end());
         REQUIRE( got == std::vector<ecs::entity>{e1, e2} );
     }
 
-    SECTION("Include both Position and Velocity") {
+    SECTION("Include both Position and Velocity") 
+    {
         auto viewPosVel = registry.view<Position, Velocity>();
         REQUIRE( viewPosVel.size() == 1 );
         REQUIRE( viewPosVel.front() == e3 );
     }
 
-    SECTION("Exclude Position only Velocity left") {
+    SECTION("Exclude Position only Velocity left") 
+    {
         auto viewVelOnly = registry.view<Velocity>(ecs::exclude_t<Position>{});
         REQUIRE( viewVelOnly.size() == 1 );
         REQUIRE( viewVelOnly.front() == e4 );
     }
 }
-TEST_CASE("EntityManager: create, destroy, valid, signature", "[entity_manager]") {
+TEST_CASE("EntityManager: create, destroy, valid, signature", "[entity_manager][ecs]") 
+{
     ECS_PROFILE();
     ecs::entity_manager em;
 
@@ -275,7 +297,8 @@ TEST_CASE("EntityManager: create, destroy, valid, signature", "[entity_manager]"
     em.destroyEntity(e1);
     REQUIRE_FALSE(em.valid(e1));
 }
-TEST_CASE("ComponentManager: register & id uniqueness", "[component_manager]") {
+TEST_CASE("ComponentManager: register & id uniqueness", "[component_manager][ecs]") 
+{
     ECS_PROFILE();
     ecs::component_manager cm;
 
@@ -291,7 +314,8 @@ TEST_CASE("ComponentManager: register & id uniqueness", "[component_manager]") {
     cm.registerComponent<Position>();
     REQUIRE(cm.getComponentID<Position>() == pid);
 }
-TEST_CASE("Registry basic add/get/remove/has semantics", "[registry][components]") {
+TEST_CASE("Registry basic add/get/remove/has semantics", "[registry][components][ecs]") 
+{
     ECS_PROFILE();
     ecs::registry reg;
 
@@ -325,7 +349,8 @@ TEST_CASE("Registry basic add/get/remove/has semantics", "[registry][components]
     // remove missing → out_of_range
     REQUIRE_THROWS_AS(reg.remove<Position>(e), std::out_of_range);
 }
-TEST_CASE("Registry create with initial components", "[registry][create]") {
+TEST_CASE("Registry create with initial components", "[registry][create][ecs]") 
+{
     ECS_PROFILE();
     ecs::registry reg;
 
@@ -335,7 +360,8 @@ TEST_CASE("Registry create with initial components", "[registry][create]") {
     REQUIRE(reg.get<Position>(e) == Position{5,5});
     REQUIRE(reg.get<Velocity>(e) == Velocity{1,-1});
 }
-TEST_CASE("Registry destroy cleans up components and signature", "[registry][destroy]") {
+TEST_CASE("Registry destroy cleans up components and signature", "[registry][destroy][ecs]") 
+{
     ECS_PROFILE();
     ecs::registry reg;
     auto e = reg.create<Position, Health>({1,2}, Health{50});
@@ -351,7 +377,8 @@ TEST_CASE("Registry destroy cleans up components and signature", "[registry][des
     REQUIRE_THROWS_AS(reg.get<Position>(e), std::invalid_argument);
     REQUIRE_THROWS_AS(reg.remove<Health>(e), std::invalid_argument);
 }
-TEST_CASE("Registry view with includes and excludes", "[registry][view]") {
+TEST_CASE("Registry view with includes and excludes", "[registry][view][ecs]") 
+{
     ECS_PROFILE();
     ecs::registry reg;
 
@@ -387,7 +414,8 @@ TEST_CASE("Registry view with includes and excludes", "[registry][view]") {
     auto none = reg.view<Health>(ecs::exclude_t<Health>{});
     REQUIRE(none.empty());
 }
-TEST_CASE("Registry getEntities reflects live entities only", "[registry][entities]") {
+TEST_CASE("Registry getEntities reflects live entities only", "[registry][entities][ecs]") 
+{
     ECS_PROFILE();
     ecs::registry reg;
     reg.create<>();
@@ -404,33 +432,38 @@ TEST_CASE("Registry getEntities reflects live entities only", "[registry][entiti
     REQUIRE(after.size() == 2);
     REQUIRE(std::find(after.begin(), after.end(), e2) == after.end());
 }
-TEST_CASE("Registry example", "[registry]")
+TEST_CASE("Registry example", "[registry][ecs]")
 {
     struct position {
         float x;
         float y;
 
         // cant emplace structs using brace initialization D:
-        position(float x = 0, float y = 0) : x(x), y(y) {}
+        position(float x = 0, float y = 0) : x(x), y(y) 
+        {}
     };
     struct velocity {
         float dx;
         float dy;
 
-        velocity(float dx = 0, float dy = 0) : dx(dx), dy(dy) {}
+        velocity(float dx = 0, float dy = 0) : dx(dx), dy(dy) 
+        {}
     };
     struct tag {};
 
     ecs::registry registry;
 
-    for(auto i = 0u; i < 10u; ++i) {
+    for(auto i = 0u; i < 10u; ++i) 
+    {
         const auto entity = registry.create();
         registry.emplace<position>(entity, i * 1.f, i * 1.f);
-        if(i % 2 == 0) { registry.emplace<velocity>(entity, i * .1f, i * .1f); }
+        if(i % 2 == 0) 
+        { registry.emplace<velocity>(entity, i * .1f, i * .1f); }
         
         std::vector<ecs::entity> view = registry.view<position, velocity>(ecs::exclude_t<tag>{});
 
-        for(auto const &e : view) {
+        for(auto const &e : view) 
+        {
             registry.get<position>(e).x += registry.get<velocity>(e).dx;
             registry.get<position>(e).y += registry.get<velocity>(e).dy;
         }
@@ -440,7 +473,7 @@ TEST_CASE("Registry example", "[registry]")
     }
 }
 
-TEST_CASE("Default constructed ecs::sparse_set is empty", "[ecs::sparse_set][empty]")
+TEST_CASE("Default constructed ecs::sparse_set is empty", "[ecs::sparse_set][empty][ecs]")
 {
     ecs::sparse_set<int, std::string> s;
 
@@ -449,7 +482,7 @@ TEST_CASE("Default constructed ecs::sparse_set is empty", "[ecs::sparse_set][emp
     REQUIRE(s.begin() == s.end());
 }
 
-TEST_CASE("insert and operator[] access elements", "[ecs::sparse_set][insert][access]")
+TEST_CASE("insert and operator[] access elements", "[ecs::sparse_set][insert][access][ecs]")
 {
     ecs::sparse_set<int, std::string> s;
     s.insert(1, "hello");
@@ -472,12 +505,13 @@ TEST_CASE("insert and operator[] access elements", "[ecs::sparse_set][insert][ac
     REQUIRE(seen == actual);
 }
 
-TEST_CASE("emplace constructs non-copyable types in place", "[ecs::sparse_set][emplace]")
+TEST_CASE("emplace constructs non-copyable types in place", "[ecs::sparse_set][emplace][ecs]")
 {
     struct EmplaceOnly
     {
         int value;
-        explicit EmplaceOnly(int v) : value(v) {}
+        explicit EmplaceOnly(int v) : value(v) 
+        {}
         EmplaceOnly(const EmplaceOnly&) = delete;
         EmplaceOnly& operator=(const EmplaceOnly&) = delete;
         EmplaceOnly(EmplaceOnly&&) = default;
@@ -493,7 +527,7 @@ TEST_CASE("emplace constructs non-copyable types in place", "[ecs::sparse_set][e
     REQUIRE(eo.value == 123);
 }
 
-TEST_CASE("insert duplicate sparse index throws std::invalid_argument", "[ecs::sparse_set][error]")
+TEST_CASE("insert duplicate sparse index throws std::invalid_argument", "[ecs::sparse_set][error][ecs]")
 {
     ecs::sparse_set<int, int> s;
     s.insert(5, 100);
@@ -501,7 +535,7 @@ TEST_CASE("insert duplicate sparse index throws std::invalid_argument", "[ecs::s
     REQUIRE_THROWS_AS(s.emplace(5, 300), std::invalid_argument);
 }
 
-TEST_CASE("remove middle and last elements and maintain packing", "[ecs::sparse_set][remove]")
+TEST_CASE("remove middle and last elements and maintain packing", "[ecs::sparse_set][remove][ecs]")
 {
     ecs::sparse_set<int, std::string> s;
     s.insert(1, "A");
@@ -529,20 +563,20 @@ TEST_CASE("remove middle and last elements and maintain packing", "[ecs::sparse_
     REQUIRE(std::find(s.data().begin(), s.data().end(), "D") != s.data().end());
 }
 
-TEST_CASE("remove of non-existing index throws std::out_of_range", "[ecs::sparse_set][error]")
+TEST_CASE("remove of non-existing index throws std::out_of_range", "[ecs::sparse_set][error][ecs]")
 {
     ecs::sparse_set<int, int> s;
     REQUIRE_THROWS_AS(s.remove(99), std::out_of_range);
 }
 
-TEST_CASE("get of non-existing index throws std::out_of_range", "[ecs::sparse_set][error]")
+TEST_CASE("get of non-existing index throws std::out_of_range", "[ecs::sparse_set][error][ecs]")
 {
     ecs::sparse_set<int, int> s;
     REQUIRE_THROWS_AS(s.get(7), std::out_of_range);
     REQUIRE_THROWS_AS(s[7], std::out_of_range);
 }
 
-TEST_CASE("reserve increases dense storage capacity", "[ecs::sparse_set][reserve]")
+TEST_CASE("reserve increases dense storage capacity", "[ecs::sparse_set][reserve][ecs]")
 {
     ecs::sparse_set<int, int> s;
     size_t before = s.data().capacity();
@@ -551,7 +585,7 @@ TEST_CASE("reserve increases dense storage capacity", "[ecs::sparse_set][reserve
     REQUIRE(s.data().capacity() >= before);
 }
 
-TEST_CASE("copy and move semantics preserve data correctly", "[ecs::sparse_set][copy][move]")
+TEST_CASE("copy and move semantics preserve data correctly", "[ecs::sparse_set][copy][move][ecs]")
 {
     ecs::sparse_set<int, int> original;
     original.insert(1, 10);
@@ -571,7 +605,7 @@ TEST_CASE("copy and move semantics preserve data correctly", "[ecs::sparse_set][
     // original is in a valid but unspecified state; we at least know it won't crash
     REQUIRE_NOTHROW(original.contains(1));
 }
-TEST_CASE("emplacement of a aggregate type in the sparse set", "[ecs::sparse_set]")
+TEST_CASE("emplacement of a aggregate type in the sparse set", "[ecs::sparse_set][ecs]")
 {
     ecs::sparse_set<int, Position> s;
     s.emplace(0, 0.0f, 0.0f);
@@ -587,7 +621,8 @@ TEST_CASE("emplacement of a aggregate type in the sparse set", "[ecs::sparse_set
 }
 
 /*
-TEST_CASE("Concurrent read access to the same component", "[concurrency][read]") {
+TEST_CASE("Concurrent read access to the same component", "[concurrency][read][ecs]") 
+{
     ECS_PROFILE();
     ecs::registry registry;
     constexpr int N = 1000;
@@ -600,8 +635,10 @@ TEST_CASE("Concurrent read access to the same component", "[concurrency][read]")
     // spawn R reader threads that sum x
     std::vector<float> sums(R, 0.0f);
     std::vector<std::thread> readers;
-    for(int t = 0; t < R; ++t) {
-        readers.emplace_back([t, &registry, &sums]() {
+    for(int t = 0; t < R; ++t) 
+    {
+        readers.emplace_back([t, &registry, &sums]() 
+        {
             float local = 0.0f;
             auto view = registry.view<Position>();
             for(auto e : view)
@@ -615,7 +652,8 @@ TEST_CASE("Concurrent read access to the same component", "[concurrency][read]")
     for(int t = 0; t < R; ++t)
         REQUIRE( abs(sums[t] - static_cast<float>(N)) < 0.01 );
 }
-TEST_CASE("Concurrent entity creation and destruction", "[concurrency][write]") {
+TEST_CASE("Concurrent entity creation and destruction", "[concurrency][write][ecs]") 
+{
     ECS_PROFILE();
     ecs::registry registry;
     constexpr int T = 4;
@@ -624,9 +662,12 @@ TEST_CASE("Concurrent entity creation and destruction", "[concurrency][write]") 
     // each thread will create M entities of type Health and record them
     std::array<std::vector<ecs::entity>, T> created;
     std::vector<std::thread> creators;
-    for(int t = 0; t < T; ++t) {
-        creators.emplace_back([t, &registry, &created]() {
-            for(int i = 0; i < M; ++i) {
+    for(int t = 0; t < T; ++t) 
+    {
+        creators.emplace_back([t, &registry, &created]() 
+        {
+            for(int i = 0; i < M; ++i) 
+            {
                 auto e = registry.create<Health>(Health{100});
                 created[t].push_back(e);
             }
@@ -640,9 +681,12 @@ TEST_CASE("Concurrent entity creation and destruction", "[concurrency][write]") 
 
     // now destroy them concurrently in the same thread groups
     std::vector<std::thread> destroyers;
-    for(int t = 0; t < T; ++t) {
-        destroyers.emplace_back([t, &registry, &created]() {
-            for(auto e : created[t]) {
+    for(int t = 0; t < T; ++t) 
+    {
+        destroyers.emplace_back([t, &registry, &created]() 
+        {
+            for(auto e : created[t]) 
+            {
                 registry.destroy(e);
             }
         });
@@ -652,7 +696,8 @@ TEST_CASE("Concurrent entity creation and destruction", "[concurrency][write]") 
     // registry should be empty
     REQUIRE( registry.getEntities().empty() );
 }
-TEST_CASE("System basic usage", "[system]") {
+TEST_CASE("System basic usage", "[system][ecs]") 
+{
     ECS_PROFILE();
     ecs::registry registry;
 

@@ -8,8 +8,12 @@ FetchContent_Declare(
 message(STATUS "TESTS: Fetching Catch2...")
 FetchContent_MakeAvailable(Catch2)
 
-file(GLOB_RECURSE TESTS_SOURCES "*.cpp")
-
-add_executable(tests ${TESTS_SOURCES})
+add_executable(tests test_ecs.cpp)
 target_include_directories(tests PRIVATE ..)
 target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
+
+list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
+include(CTest)
+include(Catch)
+enable_testing()
+catch_discover_tests(tests TEST_SPEC "[ecs]")
