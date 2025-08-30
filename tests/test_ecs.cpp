@@ -475,7 +475,7 @@ TEST_CASE("Registry example", "[registry][ecs]")
 
 TEST_CASE("Default constructed ecs::sparse_set is empty", "[ecs::sparse_set][empty][ecs]")
 {
-    ecs::sparse_set<int, std::string> s;
+    ecs::sparse_set<std::string> s;
 
     REQUIRE_FALSE(s.contains(42));
     REQUIRE(s.data().empty());
@@ -484,7 +484,7 @@ TEST_CASE("Default constructed ecs::sparse_set is empty", "[ecs::sparse_set][emp
 
 TEST_CASE("insert and operator[] access elements", "[ecs::sparse_set][insert][access][ecs]")
 {
-    ecs::sparse_set<int, std::string> s;
+    ecs::sparse_set<std::string> s;
     s.insert(1, "hello");
     s.insert(3, "world");
 
@@ -519,7 +519,7 @@ TEST_CASE("emplace constructs non-copyable types in place", "[ecs::sparse_set][e
         bool operator==(EmplaceOnly const& other) const { return value == other.value; }
     };
 
-    ecs::sparse_set<int, EmplaceOnly> s;
+    ecs::sparse_set<EmplaceOnly> s;
     s.emplace(10, 123);
 
     REQUIRE(s.contains(10));
@@ -529,7 +529,7 @@ TEST_CASE("emplace constructs non-copyable types in place", "[ecs::sparse_set][e
 
 TEST_CASE("insert duplicate sparse index throws std::invalid_argument", "[ecs::sparse_set][error][ecs]")
 {
-    ecs::sparse_set<int, int> s;
+    ecs::sparse_set<int> s;
     s.insert(5, 100);
     REQUIRE_THROWS_AS(s.insert(5, 200), std::invalid_argument);
     REQUIRE_THROWS_AS(s.emplace(5, 300), std::invalid_argument);
@@ -537,7 +537,7 @@ TEST_CASE("insert duplicate sparse index throws std::invalid_argument", "[ecs::s
 
 TEST_CASE("remove middle and last elements and maintain packing", "[ecs::sparse_set][remove][ecs]")
 {
-    ecs::sparse_set<int, std::string> s;
+    ecs::sparse_set<std::string> s;
     s.insert(1, "A");
     s.insert(2, "B");
     s.insert(3, "C");
@@ -565,20 +565,20 @@ TEST_CASE("remove middle and last elements and maintain packing", "[ecs::sparse_
 
 TEST_CASE("remove of non-existing index throws std::out_of_range", "[ecs::sparse_set][error][ecs]")
 {
-    ecs::sparse_set<int, int> s;
+    ecs::sparse_set<int> s;
     REQUIRE_THROWS_AS(s.remove(99), std::out_of_range);
 }
 
 TEST_CASE("get of non-existing index throws std::out_of_range", "[ecs::sparse_set][error][ecs]")
 {
-    ecs::sparse_set<int, int> s;
+    ecs::sparse_set<int> s;
     REQUIRE_THROWS_AS(s.get(7), std::out_of_range);
     REQUIRE_THROWS_AS(s[7], std::out_of_range);
 }
 
 TEST_CASE("reserve increases dense storage capacity", "[ecs::sparse_set][reserve][ecs]")
 {
-    ecs::sparse_set<int, int> s;
+    ecs::sparse_set<int> s;
     size_t before = s.data().capacity();
     s.reserve(100);
     REQUIRE(s.data().capacity() >= 100);
@@ -587,17 +587,17 @@ TEST_CASE("reserve increases dense storage capacity", "[ecs::sparse_set][reserve
 
 TEST_CASE("copy and move semantics preserve data correctly", "[ecs::sparse_set][copy][move][ecs]")
 {
-    ecs::sparse_set<int, int> original;
+    ecs::sparse_set<int> original;
     original.insert(1, 10);
     original.insert(2, 20);
 
-    ecs::sparse_set<int, int> copy = original;
+    ecs::sparse_set<int> copy = original;
     REQUIRE(copy.contains(1));
     REQUIRE(copy.contains(2));
     REQUIRE(copy.get(1) == 10);
     REQUIRE(copy.get(2) == 20);
 
-    ecs::sparse_set<int, int> moved = std::move(original);
+    ecs::sparse_set<int> moved = std::move(original);
     REQUIRE(moved.contains(1));
     REQUIRE(moved.contains(2));
     REQUIRE(moved.get(1) == 10);
@@ -607,7 +607,7 @@ TEST_CASE("copy and move semantics preserve data correctly", "[ecs::sparse_set][
 }
 TEST_CASE("emplacement of a aggregate type in the sparse set", "[ecs::sparse_set][ecs]")
 {
-    ecs::sparse_set<int, Position> s;
+    ecs::sparse_set<Position> s;
     s.emplace(0, 0.0f, 0.0f);
     s.emplace(1, 0.1f, 0.1f);
     s.emplace(2, 0.2f, 0.2f);

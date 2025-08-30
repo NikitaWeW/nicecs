@@ -34,15 +34,29 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <typeindex>
 #include <string>
 #include <stdexcept>
+#include <array>
 
 /*! \cond Doxygen_Suppress */
 // Config section 
 
 #include <cassert>
+
+#ifndef ECS_PROFILE
 #define ECS_PROFILE()
-#define ECS_ASSERT(x, msg) assert((x) && (msg))
+#endif
+
+#ifndef ECS_ASSERT
+#define ECS_ASSERT(x, msg) assert((x) && ((msg) || true))
+#endif
+
+#ifndef ECS_THROW
 #define ECS_THROW(x) (throw (x))
+#endif
+
+#ifndef ECS_INLINE
 #define ECS_INLINE inline
+#endif
+
 #define ECS_IMPLEMENTATION
 
 /*! \endcond */
@@ -59,7 +73,7 @@ namespace ecs
     using ComponentID_t = std::uint8_t;
 
     /** \brief Controls the maximum number of registered components allowed to exist simultaneously. */
-    const ComponentID_t MAX_COMPONENTS = 128;
+    constexpr ComponentID_t MAX_COMPONENTS = 128;
 
     /**
      * \brief Used to track which components entity has. 
@@ -72,25 +86,37 @@ namespace ecs
      * \tparam sparse_t The type of the sparse index.
      * \tparam dense_t The type of densely stored data.
      */
-    template<typename sparse_t, typename dense_t>
+    template<typename dense_t>
     class sparse_set
     {
-    private:
-        std::vector<dense_t> m_dense;
-        std::unordered_map<sparse_t, size_t> m_sparseToDense;
-        std::unordered_map<size_t, sparse_t> m_denseToSparse;
     public:
         /** \brief The type of the sparse index. */
-        using sparse_type = sparse_t;
+        using sparse_type = std::size_t;
         /** \brief The type of densely stored data. */
         using dense_type = dense_t;
         /** \brief The dense list iterator */
-        using iterator_type = typename std::vector<dense_t>::iterator;
+        using iterator_type = typename std::vector<dense_type>::iterator;
         /** \coptdoc iterator */
-        using const_iterator_type = typename std::vector<dense_t>::const_iterator;
+        using const_iterator_type = typename std::vector<dense_type>::const_iterator;
 
-        /** \brief The default constructor */
-        sparse_set() = default; 
+        /** \brief The size of the page of a paginated sparse set. */
+        static constexpr std::size_t MAX_PAGE_SIZE = 5;
+
+        /** \brief The sparse pointer that represents the empty index. */
+        static constexpr std::size_t null = std::numeric_limits<std::size_t>::max();
+    private:
+        std::vector<dense_type> m_dense;
+        std::vector<sparse_type> m_denseToSparse;
+        std::vector<std::array<size_t, MAX_PAGE_SIZE>> m_sparse;
+
+        void setDenseIndex(sparse_type const &sparse, std::size_t index);
+        std::size_t getDenseIndex(sparse_type const &sparse) const;
+    public:
+        /** 
+         * \brief The constructor.
+         * \param capacity The optional capacity to reserve.
+         * */
+        sparse_set(std::size_t capacity = 1000);
         /** \brief The destructor */
         ~sparse_set() = default;
         /** \brief The copy constructor */
@@ -156,7 +182,7 @@ namespace ecs
         /**
          * \brief Increase the capacity of the dense list.
          */
-        void reserve(size_t newCapacity);
+        void reserve(std::size_t newCapacity);
 
         /** \brief The cbegin of the dense list. */
         const_iterator_type begin() const;
@@ -178,7 +204,7 @@ namespace ecs
         std::queue<entity> m_availableEntityIDs;
         std::unordered_set<entity> m_entities;
         std::uint32_t m_livingEntitiesCount = 0;
-        ecs::sparse_set<entity, signature> m_signatures;
+        ecs::sparse_set<signature> m_signatures;
         ecs::entity m_nextID = 1;
     public:
         explicit entity_manager(ecs::entity numEntities = 100000);
@@ -252,7 +278,7 @@ namespace ecs
      * @tparam component_t The type of stored components.
      */
     template <typename component_t>
-    class component_array : public icomponent_array, public sparse_set<ecs::entity, component_t>
+    class component_array : public icomponent_array, public sparse_set<component_t>
     {
     public:
         /**
@@ -505,9 +531,45 @@ namespace ecs
 #ifdef ECS_IMPLEMENTATION
 /*! \cond Doxygen_Suppress */
 
-template <typename sparse_t, typename dense_t>
+template <typename dense_t>
+inline void ecs::sparse_set<dense_t>::setDenseIndex(sparse_type const &sparse, std::size_t index)
+{
+    if(sparse < 0)
+        return;
+
+    size_t page = sparse / MAX_PAGE_SIZE;
+    size_t sparseIndex = sparse % MAX_PAGE_SIZE;
+
+    if(page >= m_sparse.size()) {
+        m_sparse.resize(page + 1);
+        m_sparse[page].fill(null);
+    }
+
+    m_sparse[page][sparseIndex] = index;
+}
+template <typename dense_t>
+inline std::size_t ecs::sparse_set<dense_t>::getDenseIndex(sparse_type const &sparse) const
+{
+    if(sparse < 0)
+        return null;
+
+    size_t page = sparse / MAX_PAGE_SIZE;
+    size_t sparseIndex = sparse % MAX_PAGE_SIZE;
+
+    if (page < m_sparse.size()) {
+        return m_sparse[page][sparseIndex];
+    }
+
+    return null;
+}
+template <typename dense_t>
+inline ecs::sparse_set<dense_t>::sparse_set(std::size_t capacity)
+{
+    reserve(capacity);
+}
+template <typename dense_t>
 template <class... Args>
-ECS_INLINE void ecs::sparse_set<sparse_t, dense_t>::emplace(sparse_type const &sparse, Args &&...args)
+ECS_INLINE void ecs::sparse_set<dense_t>::emplace(sparse_type const &sparse, Args &&...args)
 {
     if(contains(sparse))
         ECS_THROW(std::invalid_argument{"element added to the same sparse index more than once!"});
@@ -517,95 +579,99 @@ ECS_INLINE void ecs::sparse_set<sparse_t, dense_t>::emplace(sparse_type const &s
     else 
         m_dense.emplace_back(std::forward<Args>(args)...);
 
-    size_t index = m_dense.size() - 1;
-    m_sparseToDense[sparse] = index;
-    m_denseToSparse[index] = sparse;
+    std::size_t index = m_dense.size() - 1;
+    setDenseIndex(sparse, index);
+    m_denseToSparse.emplace_back(sparse);
 }
-template <typename sparse_t, typename dense_t>
-ECS_INLINE void ecs::sparse_set<sparse_t, dense_t>::insert(sparse_type const &sparse, dense_type const &element)
+template <typename dense_t>
+ECS_INLINE void ecs::sparse_set<dense_t>::insert(sparse_type const &sparse, dense_type const &element)
 {
     emplace(sparse, element);
 }
-template <typename sparse_t, typename dense_t>
-ECS_INLINE void ecs::sparse_set<sparse_t, dense_t>::remove(sparse_type const &sparse)
+template <typename dense_t>
+ECS_INLINE void ecs::sparse_set<dense_t>::remove(sparse_type const &sparse)
 {
     if(!contains(sparse))
         ECS_THROW(std::out_of_range{"removing a non-existing element from a sparse index!"});
 
-    size_t removedDenseIndex = m_sparseToDense[sparse];
-    size_t lastDenseIndex = m_dense.size() - 1;
+    std::size_t removedDenseIndex = getDenseIndex(sparse);
+    std::size_t lastDenseIndex = m_dense.size() - 1;
 
     if(removedDenseIndex != lastDenseIndex)
     {
         sparse_type lastSparseIndex = m_denseToSparse[lastDenseIndex];
-        m_sparseToDense[lastSparseIndex] = removedDenseIndex;
+        setDenseIndex(lastSparseIndex, removedDenseIndex);
+
         m_denseToSparse[removedDenseIndex] = lastSparseIndex;
         
         m_dense[removedDenseIndex] = std::move(m_dense[lastDenseIndex]);
     }
 
+    setDenseIndex(sparse, null);
+
     m_dense.pop_back();
-    m_sparseToDense.erase(sparse);
-    m_denseToSparse.erase(lastDenseIndex);
+    m_denseToSparse.pop_back();
 }
-template <typename sparse_t, typename dense_t>
-ECS_INLINE bool ecs::sparse_set<sparse_t, dense_t>::contains(sparse_type const &sparse) const
+template <typename dense_t>
+ECS_INLINE bool ecs::sparse_set<dense_t>::contains(sparse_type const &sparse) const
 {
-    return m_sparseToDense.find(sparse) != m_sparseToDense.end();
+    return getDenseIndex(sparse) != null;
 }
-template <typename sparse_t, typename dense_t>
-ECS_INLINE void ecs::sparse_set<sparse_t, dense_t>::reserve(size_t newCapacity)
+template <typename dense_t>
+ECS_INLINE void ecs::sparse_set<dense_t>::reserve(std::size_t newCapacity)
 {
     m_dense.reserve(newCapacity);
+    m_denseToSparse.reserve(newCapacity);
+    m_sparse.reserve(newCapacity);
 }
-template <typename sparse_t, typename dense_t>
-ECS_INLINE typename ecs::sparse_set<sparse_t, dense_t>::dense_type const &ecs::sparse_set<sparse_t, dense_t>::get(sparse_type const &sparse) const
+template <typename dense_t>
+ECS_INLINE typename ecs::sparse_set<dense_t>::dense_type const &ecs::sparse_set<dense_t>::get(sparse_type const &sparse) const
 {
     if(!contains(sparse))
         ECS_THROW(std::out_of_range{"getting a non-existing element from a sparse index!"});
 
-    return m_dense[m_sparseToDense.at(sparse)];
+    return m_dense[getDenseIndex(sparse)];
 }
-template <typename sparse_t, typename dense_t>
-ECS_INLINE typename ecs::sparse_set<sparse_t, dense_t>::dense_type &ecs::sparse_set<sparse_t, dense_t>::get(sparse_type const &sparse)
+template <typename dense_t>
+ECS_INLINE typename ecs::sparse_set<dense_t>::dense_type &ecs::sparse_set<dense_t>::get(sparse_type const &sparse)
 {
     if(!contains(sparse))
         ECS_THROW(std::out_of_range{"getting a non-existing element from a sparse index!"});
 
-    return m_dense[m_sparseToDense.at(sparse)];
+    return m_dense[getDenseIndex(sparse)];
 }
-template <typename sparse_t, typename dense_t>
-ECS_INLINE typename ecs::sparse_set<sparse_t, dense_t>::dense_type &ecs::sparse_set<sparse_t, dense_t>::operator[](sparse_type const &sparse)
+template <typename dense_t>
+ECS_INLINE typename ecs::sparse_set<dense_t>::dense_type &ecs::sparse_set<dense_t>::operator[](sparse_type const &sparse)
 {
     return get(sparse);
 }
-template <typename sparse_t, typename dense_t>
-ECS_INLINE typename ecs::sparse_set<sparse_t, dense_t>::dense_type const &ecs::sparse_set<sparse_t, dense_t>::operator[](sparse_type const &sparse) const
+template <typename dense_t>
+ECS_INLINE typename ecs::sparse_set<dense_t>::dense_type const &ecs::sparse_set<dense_t>::operator[](sparse_type const &sparse) const
 {
     return get(sparse);
 }
-template <typename sparse_t, typename dense_t>
-ECS_INLINE std::vector<typename ecs::sparse_set<sparse_t, dense_t>::dense_type> const &ecs::sparse_set<sparse_t, dense_t>::data() const
+template <typename dense_t>
+ECS_INLINE std::vector<typename ecs::sparse_set<dense_t>::dense_type> const &ecs::sparse_set<dense_t>::data() const
 {
     return m_dense;
 }
-template <typename sparse_t, typename dense_t>
-ECS_INLINE typename ecs::sparse_set<sparse_t, dense_t>::const_iterator_type ecs::sparse_set<sparse_t, dense_t>::begin() const
+template <typename dense_t>
+ECS_INLINE typename ecs::sparse_set<dense_t>::const_iterator_type ecs::sparse_set<dense_t>::begin() const
 {
     return m_dense.begin();
 }
-template <typename sparse_t, typename dense_t>
-ECS_INLINE typename ecs::sparse_set<sparse_t, dense_t>::const_iterator_type ecs::sparse_set<sparse_t, dense_t>::end() const
+template <typename dense_t>
+ECS_INLINE typename ecs::sparse_set<dense_t>::const_iterator_type ecs::sparse_set<dense_t>::end() const
 {
     return m_dense.end();
 }
-template <typename sparse_t, typename dense_t>
-ECS_INLINE typename ecs::sparse_set<sparse_t, dense_t>::iterator_type ecs::sparse_set<sparse_t, dense_t>::begin()
+template <typename dense_t>
+ECS_INLINE typename ecs::sparse_set<dense_t>::iterator_type ecs::sparse_set<dense_t>::begin()
 {
     return m_dense.begin();
 }
-template <typename sparse_t, typename dense_t>
-ECS_INLINE typename ecs::sparse_set<sparse_t, dense_t>::iterator_type ecs::sparse_set<sparse_t, dense_t>::end()
+template <typename dense_t>
+ECS_INLINE typename ecs::sparse_set<dense_t>::iterator_type ecs::sparse_set<dense_t>::end()
 {
     return m_dense.end();
 }
