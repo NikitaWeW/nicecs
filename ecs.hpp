@@ -192,6 +192,11 @@ namespace ecs
          */
         void reserve(std::size_t newCapacity);
 
+        /**
+         * \brief Sets the capacity to the size.
+         */
+        void shrink_to_fit();
+
         /** \brief The cbegin of the dense list. */
         const_iterator_type begin() const;
         /** \brief The cend of the dense list. */
@@ -618,6 +623,13 @@ ECS_INLINE void ecs::sparse_set<dense_t>::reserve(std::size_t newCapacity)
     m_dense.reserve(newCapacity);
     m_denseToSparse.reserve(newCapacity);
     m_sparse.reserve(newCapacity);
+}
+template <typename dense_t>
+ECS_INLINE void ecs::sparse_set<dense_t>::shrink_to_fit()
+{
+    m_dense.shrink_to_fit();
+    m_denseToSparse.shrink_to_fit();
+    m_sparse.shrink_to_fit();
 }
 template <typename dense_t>
 ECS_INLINE typename ecs::sparse_set<dense_t>::dense_type const &ecs::sparse_set<dense_t>::get(sparse_type const &sparse) const
