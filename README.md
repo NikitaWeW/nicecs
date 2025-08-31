@@ -1,19 +1,25 @@
 # ECS - A Single-Header, C++17 Thread-Safe Entity-Component System
 
-An easy-to-integrate, header-only ECS library focused on simplicity, small footprint, and solid performance. Inspired by Austin Morlan’s article on ECS design and lightweight patterns from EnTT.
+An easy-to-integrate, header-only ECS library focused on simplicity and solid performance. Inspired by Austin Morlan’s article on ECS design and the nice api from EnTT.
 
 ## Features
 
-- Single header (`ecs.hpp`), ~1000 lines of code  
-- C++17, STL-only  
-- Simple API for creating/destroying entities and adding/removing components  
-- Sparse-set storage per component type  
-- Type-safe component registration and lookup  
-- Convenient views (include/exclude filters)  
+- Single header (`ecs.hpp`), pretty small.
+- C++17, STL-only.
+- Simple API for creating/destroying entities and adding/removing components  .
+- Sparse-set storage.
+- Type-safe lazy (implicit) component registration and lookup.
 
 ## Integration
 
-ecs.hpp contains the entire library
+`ecs.hpp` contains the entire library. The `ecs::registry` contains the api.
+
+## Documentation
+Documentation is generated using doxygen. Simply run
+```
+doxygen
+```
+in the root folder.
 
 ## Code Example
 
@@ -51,13 +57,6 @@ int main()
     }
 }
 ```
-
-## Documentation
-Documentation is generated using doxygen. Simply run
-```
-doxygen
-```
-in the root folder.
 
 ## Further Reading
 

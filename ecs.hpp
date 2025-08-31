@@ -6,11 +6,6 @@
 
 Thanks to this article: https://austinmorlan.com/posts/entity_component_system.
 Took a bit of inspiration from https://github.com/skypjack/entt.
-
-The main focus was on the simplicity, small size and reasonable performance (one header, ~1000 lines of code).
-The intended way to use it is by creating the ecs::registry class and using all the functions from it. 
-There is a config section below, which could be used to configure the behaviour of the library.
-ecs::registry uses ECS_THROW when error checking. The rest of implementation uses ECS_ASSERT, because all the error checking was already done in the ecs::registry, however, they may still throw due to an error not regarding ecs.
 */
 
 /*
