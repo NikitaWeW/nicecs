@@ -72,7 +72,6 @@ namespace ecs
 
     /**
      * \brief A sparse set implementation.
-     * \tparam sparse_t The type of the sparse index.
      * \tparam dense_t The type of densely stored data.
      */
     template<typename dense_t>
@@ -85,7 +84,7 @@ namespace ecs
         using dense_type = dense_t;
         /** \brief The dense list iterator */
         using iterator_type = typename std::vector<dense_type>::iterator;
-        /** \coptdoc iterator */
+        /** \copydoc iterator_type */
         using const_iterator_type = typename std::vector<dense_type>::const_iterator;
 
         /** \brief The sparse pointer that represents the empty index. */
