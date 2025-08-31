@@ -6,3 +6,6 @@ log
 docs
 CMakeUserPresets.json
 Testing
+perf.data
+profile-perf.txt
+callgrind.out.*
