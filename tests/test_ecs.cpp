@@ -542,23 +542,26 @@ TEST_CASE("remove middle and last elements and maintain packing", "[ecs::sparse_
     s.insert(2, "B");
     s.insert(3, "C");
     s.insert(4, "D");
-    // Dense layout: ["A","B","C","D"]
+    s.insert(5, "E");
+    s.insert(6, "F");
+    // Dense layout: ["A","B","C","D","E","F"]
 
     // Remove an element in the middle (key=2)
     s.remove(2);
-    REQUIRE_FALSE(s.contains(2));
     REQUIRE(s.contains(1));
+    REQUIRE_FALSE(s.contains(2));
     REQUIRE(s.contains(3));
     REQUIRE(s.contains(4));
+    REQUIRE(s.contains(5));
+    REQUIRE(s.contains(6));
     // "D" should have moved into B's slot
-    std::vector<std::string> expected1 = { "A", "D", "C" };
+    std::vector<std::string> expected1 = { "A", "F", "C", "D", "E" };
     REQUIRE(s.data() == expected1);
 
-    // Remove last element (key=3 or 4 depending on previous move)
-    int lastKey = s.data().back() == "C" ? 3 : 4;
-    s.remove(lastKey);
-    REQUIRE_FALSE(s.contains(lastKey));
-    REQUIRE(s.data().size() == 2);
+    // Remove last element
+    s.remove(5);
+    REQUIRE_FALSE(s.contains(5));
+    REQUIRE(s.data().size() == 4);
     REQUIRE(std::find(s.data().begin(), s.data().end(), "A") != s.data().end());
     REQUIRE(std::find(s.data().begin(), s.data().end(), "D") != s.data().end());
 }

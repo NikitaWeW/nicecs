@@ -26,7 +26,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <bitset>
 #include <queue>
 #include <memory>
-#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 #include <typeinfo>
@@ -70,10 +69,10 @@ namespace ecs
     /** \brief Entity ID. */
     using entity = std::uint32_t;
     /** \brief Component ID. Used with signature. */
-    using ComponentID_t = std::uint8_t;
+    using component_id = std::uint8_t;
 
     /** \brief Controls the maximum number of registered components allowed to exist simultaneously. */
-    constexpr ComponentID_t MAX_COMPONENTS = 128;
+    constexpr component_id MAX_COMPONENTS = 128;
 
     /**
      * \brief Used to track which components entity has. 
@@ -99,15 +98,12 @@ namespace ecs
         /** \coptdoc iterator */
         using const_iterator_type = typename std::vector<dense_type>::const_iterator;
 
-        /** \brief The size of the page of a paginated sparse set. */
-        static constexpr std::size_t MAX_PAGE_SIZE = 5;
-
         /** \brief The sparse pointer that represents the empty index. */
         static constexpr std::size_t null = std::numeric_limits<std::size_t>::max();
     private:
         std::vector<dense_type> m_dense;
         std::vector<sparse_type> m_denseToSparse;
-        std::vector<std::array<size_t, MAX_PAGE_SIZE>> m_sparse;
+        std::vector<size_t> m_sparse;
 
         void setDenseIndex(sparse_type const &sparse, std::size_t index);
         std::size_t getDenseIndex(sparse_type const &sparse) const;
@@ -171,6 +167,18 @@ namespace ecs
          * \return A std::vector with the elements.
          */
         std::vector<dense_type> const &data() const;
+
+        /**
+         * \brief Get dense to sparse mapping.
+         * \return 1 to 1 with the dense data vector with the dense to sparse mapping.
+         */
+        std::vector<sparse_type> const &getDenseToSparse() const;
+
+        /**
+         * \brief Get the sparse pages.
+         * \return The paginated vector with the sparse indices. The ones that are equal to null are null pointers.
+         */
+        std::vector<size_t> const &sparseData() const;
 
         /**
          * \brief Check whether the sparse set contains an element at a given sparse index.
@@ -294,9 +302,8 @@ namespace ecs
     class component_manager
     {
     private:
-        std::unordered_map<std::type_index, ComponentID_t> m_componentIDs{};
-        std::unordered_map<std::type_index, std::unique_ptr<icomponent_array>> m_componentArrays{};
-        ComponentID_t m_nextID = 0;
+        ecs::sparse_set<std::unique_ptr<icomponent_array>> m_componentArrays{};
+        static component_id m_nextID;
     public:
         component_manager() = default;
         ~component_manager() = default;
@@ -314,7 +321,7 @@ namespace ecs
          * \tparam component_t The component type.
          */
         template <typename component_t> 
-        ComponentID_t getComponentID() const;
+        component_id getComponentID() const;
 
         /**
          * \brief Adds component to an entity.
@@ -520,7 +527,7 @@ namespace ecs
 
         /** \copydoc ecs::component_manager::getComponentID */
         template <typename component_t> 
-        ComponentID_t getComponentID();
+        component_id getComponentID();
     };
 } // namespace ecs
 
@@ -532,38 +539,26 @@ namespace ecs
 /*! \cond Doxygen_Suppress */
 
 template <typename dense_t>
-inline void ecs::sparse_set<dense_t>::setDenseIndex(sparse_type const &sparse, std::size_t index)
+ECS_INLINE void ecs::sparse_set<dense_t>::setDenseIndex(sparse_type const &sparse, std::size_t index)
 {
     if(sparse < 0)
         return;
 
-    size_t page = sparse / MAX_PAGE_SIZE;
-    size_t sparseIndex = sparse % MAX_PAGE_SIZE;
+    if(sparse >= m_sparse.size())
+        m_sparse.resize(sparse + 1, null);
 
-    if(page >= m_sparse.size()) {
-        m_sparse.resize(page + 1);
-        m_sparse[page].fill(null);
-    }
-
-    m_sparse[page][sparseIndex] = index;
+    m_sparse[sparse] = index;
 }
 template <typename dense_t>
-inline std::size_t ecs::sparse_set<dense_t>::getDenseIndex(sparse_type const &sparse) const
+ECS_INLINE std::size_t ecs::sparse_set<dense_t>::getDenseIndex(sparse_type const &sparse) const
 {
-    if(sparse < 0)
+    if(sparse < 0 || sparse >= m_sparse.size())
         return null;
 
-    size_t page = sparse / MAX_PAGE_SIZE;
-    size_t sparseIndex = sparse % MAX_PAGE_SIZE;
-
-    if (page < m_sparse.size()) {
-        return m_sparse[page][sparseIndex];
-    }
-
-    return null;
+    return m_sparse[sparse];
 }
 template <typename dense_t>
-inline ecs::sparse_set<dense_t>::sparse_set(std::size_t capacity)
+ECS_INLINE ecs::sparse_set<dense_t>::sparse_set(std::size_t capacity)
 {
     reserve(capacity);
 }
@@ -654,6 +649,16 @@ template <typename dense_t>
 ECS_INLINE std::vector<typename ecs::sparse_set<dense_t>::dense_type> const &ecs::sparse_set<dense_t>::data() const
 {
     return m_dense;
+}
+template <typename dense_t>
+ECS_INLINE std::vector<typename ecs::sparse_set<dense_t>::sparse_type> const &ecs::sparse_set<dense_t>::getDenseToSparse() const
+{
+    return m_denseToSparse;
+}
+template <typename dense_t>
+ECS_INLINE std::vector<size_t> const &ecs::sparse_set<dense_t>::sparseData() const
+{
+    return m_sparse;
 }
 template <typename dense_t>
 ECS_INLINE typename ecs::sparse_set<dense_t>::const_iterator_type ecs::sparse_set<dense_t>::begin() const
@@ -758,22 +763,16 @@ template <typename component_t>
 ECS_INLINE void ecs::component_manager::registerComponent()
 {
     ECS_PROFILE();
-    auto name = std::type_index{typeid(component_t)};
-    if(m_componentIDs.find(name) != m_componentIDs.end())
-        return;
-    ECS_ASSERT(m_nextID < MAX_COMPONENTS, "too many components registered!");
-    m_componentIDs.insert({name, m_nextID});
-    m_componentArrays.insert({name, std::make_unique<component_array<component_t>>()});
-
-    ++m_nextID;
+    auto id = getComponentID<component_t>();
+    if(!m_componentArrays.contains(id))
+        m_componentArrays.emplace(id, std::move(std::make_unique<component_array<component_t>>()));
 }
 template <typename component_t>
-ECS_INLINE ecs::ComponentID_t ecs::component_manager::getComponentID() const
+ECS_INLINE ecs::component_id ecs::component_manager::getComponentID() const
 {
-    ECS_PROFILE();
-    auto name = std::type_index{typeid(component_t)};
-    ECS_ASSERT(m_componentIDs.find(name) != m_componentIDs.end(), "component not registered before use");
-    return m_componentIDs.at(name);
+    ECS_ASSERT(m_nextID < MAX_COMPONENTS, "too many components registered!");
+    static const component_id id = m_nextID++;
+    return id;
 }
 template <typename component_t>
 ECS_INLINE void ecs::component_manager::add(entity const &entity, component_t const &component)
@@ -803,22 +802,22 @@ template <typename component_t>
 ECS_INLINE ecs::component_array<component_t> *ecs::component_manager::getComponentArray()
 {
     ECS_PROFILE();
-    auto name = std::type_index{typeid(component_t)};
-    ECS_ASSERT(m_componentIDs.find(name) != m_componentIDs.end(), "component not registered before use");
-    return static_cast<component_array<component_t> *>(m_componentArrays.at(name).get());
+    auto id = getComponentID<component_t>();
+    ECS_ASSERT(m_componentArrays.contains(id), "component not registered before use");
+    return static_cast<component_array<component_t> *>(m_componentArrays.get(id).get());
 }
 template <typename component_t>
 ECS_INLINE ecs::component_array<component_t> const *ecs::component_manager::getComponentArray() const
 {
     ECS_PROFILE();
-    auto name = std::type_index{typeid(component_t)};
-    ECS_ASSERT(m_componentIDs.find(name) != m_componentIDs.end(), "component not registered before use");
-    return static_cast<component_array<component_t> const *>(m_componentArrays.at(name).get());
+    auto id = getComponentID<component_t>();
+    ECS_ASSERT(m_componentArrays.contains(id), "component not registered before use");
+    return static_cast<component_array<component_t> *>(m_componentArrays.get(id).get());
 }
 ECS_INLINE void ecs::component_manager::entityDestroyed(entity const &entity) const
 {
     ECS_PROFILE();
-    for(auto const &[name, componentArray] : m_componentArrays) {
+    for(auto const &componentArray : m_componentArrays) {
         componentArray->onEntityDestroyed(entity);
     }
 }
@@ -828,6 +827,7 @@ ECS_INLINE void ecs::component_manager::emplace(entity const &entity, Args&&... 
     ECS_PROFILE();
     getComponentArray<component_t>()->emplace(entity, std::forward<Args>(args)...);
 }
+ECS_INLINE ecs::component_id ecs::component_manager::m_nextID = 0;
 
 template <typename... Components_t>
 constexpr ecs::signature ecs::registry::makeSignature() const
@@ -990,7 +990,7 @@ ECS_INLINE ecs::signature ecs::registry::getSignature(entity const &entity) cons
     return m_entityManager.getSignature(entity);
 }
 template <typename component_t>
-ECS_INLINE ecs::ComponentID_t ecs::registry::getComponentID()
+ECS_INLINE ecs::component_id ecs::registry::getComponentID()
 {
     ECS_PROFILE();
     m_componentManager.registerComponent<component_t>();
