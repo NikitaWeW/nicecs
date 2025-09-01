@@ -74,7 +74,15 @@ Here are places, where i developed it in the chronological order:
 - https://github.com/NikitaWeW/ecs (this repo)
 
 ## Tests
-Compile the cmake project in the tests directory.
+Set the cmake variable `ECS_BUILD_TESTS` to ON:
+
+```
+cmake ... -DECS_BUILD_TESTS=ON
+build/tests/tests
+# or
+cd build/tests
+ctest .
+```
 
 ## Further Reading
 
