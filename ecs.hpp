@@ -24,6 +24,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vector>
 #include <type_traits>
 #include <stdexcept>
+#include <limits>
 
 /*! \cond Doxygen_Suppress */
 // Config section 
