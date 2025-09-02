@@ -25,6 +25,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <type_traits>
 #include <stdexcept>
 #include <limits>
+#include <unordered_map>
+#include <algorithm>
 
 /*! \cond Doxygen_Suppress */
 // Config section 
@@ -130,7 +132,7 @@ namespace ecs
          * \param sparse A sparse index.
          * \throws std::out_of_range If a sparse index doesent contain the element.
          */
-        void remove(sparse_type const &sparse);
+        void erase(sparse_type const &sparse);
 
         /**
          * \brief Gets an element at a sparse index.
@@ -181,6 +183,11 @@ namespace ecs
          */
         void shrink_to_fit();
 
+        /**
+         * \return True if the container is empty, false otherwise.
+         */
+        bool empty() const;
+
         /** \brief The cbegin of the dense list. */
         const_iterator_type begin() const;
         /** \brief The cend of the dense list. */
@@ -199,7 +206,7 @@ namespace ecs
     {
     private:
         std::queue<entity> m_availableEntityIDs;
-        sparse_set<entity> m_entities;
+        std::unordered_map<signature, sparse_set<entity>> m_entityGroups;
         std::uint32_t m_livingEntitiesCount = 0;
         sparse_set<signature> m_signatures;
         entity m_nextID = 1;
@@ -230,18 +237,12 @@ namespace ecs
          * \return A copy of a signature, describing the components an entity has.
          */
         signature getSignature(entity const &entity) const;
-        /**
-         * \brief Gets the signature of a valid entity.
-         * \param entity A valid entity identifier.
-         * \return A signature, describing the components an entity has.
-         */
-        signature &getSignature(entity const &entity);
 
         /**
          * \brief Get entities of this manager.
-         * \return A set of valid entities created by this manager
+         * \return Get a map of the sparse sets of all the valid entities of this registry with their signatures as its key.
          */
-        std::vector<entity> const &getEntities() const;
+        std::unordered_map<signature, sparse_set<entity>> const &getEntityGroups() const;
 
         /**
          * \brief Checks if an identifier refers to a valid entity.
@@ -249,11 +250,6 @@ namespace ecs
          * \return True if the identifier is valid, false otherwise.
          */
         bool valid(entity const &entity) const;
-
-        /**
-         * \return True if next createEntity call will produce a valid entity, false otherwise,
-         */
-        bool nextEntityValid() const;
     };
 
     /**
@@ -291,7 +287,7 @@ namespace ecs
     class component_manager
     {
     private:
-        sparse_set<std::unique_ptr<icomponent_array>> m_componentArrays{};
+        sparse_set<std::shared_ptr<icomponent_array>> m_componentArrays{};
         static component_id m_nextID;
     public:
         component_manager() = default;
@@ -470,7 +466,6 @@ namespace ecs
 
         /**
          * \brief Creates entity with optional components.
-         * \throws std::length_error If the next entity is invalid. Perhaps too many entities?
          * \tparam Components_t Components (optional).
          * \return Unique valid entity id managed by entity_manager.
          */
@@ -503,20 +498,9 @@ namespace ecs
         std::vector<entity> view(exclude_t<Exclude...> toExclude = exclude_t{}) const;
 
         /**
-         * \brief Get entities of this registry.
-         * \return A set of valid entities created by this registry.
+         * \return Get a map of the sparse sets of all the valid entities of this registry with their signatures as its key.
          */
-        std::vector<entity> getEntities() const;
-
-        /**
-         * \copydoc entity_manager::getSignature
-         * \throws std::invalid_argument if the entity is not a valid identifier.
-         */
-        signature getSignature(entity const &entity) const;
-
-        /** \copydoc component_manager::getComponentID */
-        template <typename component_t> 
-        component_id getComponentID();
+        std::unordered_map<signature, sparse_set<entity>> const &getEntityGroups() const;
     };
 } // namespace ecs
 
@@ -577,7 +561,7 @@ inline void ecs::sparse_set<dense_t>::insert(sparse_type const &sparse, dense_ty
     emplace(sparse, element);
 }
 template <typename dense_t>
-inline void ecs::sparse_set<dense_t>::remove(sparse_type const &sparse)
+inline void ecs::sparse_set<dense_t>::erase(sparse_type const &sparse)
 {
     ECS_PROFILE();
     if(!contains(sparse))
@@ -621,6 +605,10 @@ inline void ecs::sparse_set<dense_t>::shrink_to_fit()
     ECS_PROFILE();
     m_dense.shrink_to_fit();
     m_denseToSparse.shrink_to_fit();
+
+    auto maxIterator = std::max(m_denseToSparse.begin(), m_denseToSparse.end());
+    sparse_type maxIndex = maxIterator != m_denseToSparse.end() ? *maxIterator : 0;
+    m_sparse.resize(maxIndex);
     m_sparse.shrink_to_fit();
 }
 template <typename dense_t>
@@ -695,6 +683,12 @@ inline typename ecs::sparse_set<dense_t>::iterator_type ecs::sparse_set<dense_t>
     ECS_PROFILE();
     return m_dense.end();
 }
+template <typename dense_t>
+inline bool ecs::sparse_set<dense_t>::empty() const
+{
+    ECS_PROFILE();
+    return m_dense.empty();
+}
 
 inline ecs::entity_manager::entity_manager(ecs::entity numEntities)
 {
@@ -707,12 +701,11 @@ inline ecs::entity_manager::entity_manager(ecs::entity numEntities)
 inline ecs::entity ecs::entity_manager::createEntity(signature signature)
 {
     ECS_PROFILE();
-    ECS_ASSERT(nextEntityValid(), "too many entities! (should not happen?)");
 
     entity entity = m_availableEntityIDs.front();
     m_availableEntityIDs.pop();
     ++m_livingEntitiesCount;
-    m_entities.emplace(entity, entity);
+    m_entityGroups[signature].emplace(entity, entity);
 
     if(m_availableEntityIDs.empty())
         m_availableEntityIDs.push(m_nextID++);
@@ -727,14 +720,28 @@ inline void ecs::entity_manager::destroyEntity(entity const &entity)
     ECS_ASSERT(valid(entity), "invalid entity identifier!");
     --m_livingEntitiesCount;
     m_availableEntityIDs.push(entity);
-    m_entities.remove(entity);
-    m_signatures.remove(entity);
+
+    auto &group = m_entityGroups[getSignature(entity)];
+    group.erase(entity);
+    if(group.empty())
+        m_entityGroups.erase(getSignature(entity));
+
+    m_signatures.erase(entity);
 }
 inline void ecs::entity_manager::setSignature(entity const &entity, signature signature)
 {
     ECS_PROFILE();
     ECS_ASSERT(valid(entity), "invalid entity identifier!");
+
+    auto &group = m_entityGroups[getSignature(entity)];
+    group.erase(entity);
+    if(group.empty())
+        m_entityGroups.erase(getSignature(entity));
+
     m_signatures[entity] = signature;
+
+    m_entityGroups[signature].emplace(entity, entity);
+
 }
 inline ecs::signature ecs::entity_manager::getSignature(entity const &entity) const
 {
@@ -743,41 +750,29 @@ inline ecs::signature ecs::entity_manager::getSignature(entity const &entity) co
     
     return m_signatures[entity];
 }
-inline ecs::signature &ecs::entity_manager::getSignature(entity const &entity)
-{
-    ECS_PROFILE();
-    ECS_ASSERT(valid(entity), "invalid entity identifier!");
-
-    return m_signatures[entity];
-}
 inline bool ecs::entity_manager::valid(entity const &entity) const
 {
     ECS_PROFILE();
-    return 1 <= entity && entity < m_nextID && m_entities.contains(entity);
+    return 1 <= entity && entity < m_nextID && m_signatures.contains(entity);
 }
-inline bool ecs::entity_manager::nextEntityValid() const
+inline std::unordered_map<ecs::signature, ecs::sparse_set<ecs::entity>> const &ecs::entity_manager::getEntityGroups() const
 {
     ECS_PROFILE();
-    return !m_availableEntityIDs.empty();
-}
-inline std::vector<ecs::entity> const &ecs::entity_manager::getEntities() const
-{
-    ECS_PROFILE();
-    return m_entities.data();
+    return m_entityGroups;
 } 
 
 template <typename component_t>
 inline void ecs::component_array<component_t>::onEntityDestroyed(entity const &entity)
 {
-ECS_PROFILE();
+    ECS_PROFILE();
     if(this->contains(entity))
-        this->remove(entity);
+        this->erase(entity);
 }
 
 template <typename component_t>
 inline void ecs::component_manager::registerComponent()
 {
-ECS_PROFILE();
+    ECS_PROFILE();
     auto id = getComponentID<component_t>();
     if(!m_componentArrays.contains(id))
         m_componentArrays.emplace(id, std::move(std::make_unique<component_array<component_t>>()));
@@ -785,7 +780,7 @@ ECS_PROFILE();
 template <typename component_t>
 inline ecs::component_id ecs::component_manager::getComponentID() const
 {
-ECS_PROFILE();
+    ECS_PROFILE();
     ECS_ASSERT(m_nextID < MAX_COMPONENTS, "too many components registered!");
     static const component_id id = m_nextID++;
     return id;
@@ -793,31 +788,31 @@ ECS_PROFILE();
 template <typename component_t>
 inline void ecs::component_manager::add(entity const &entity, component_t const &component)
 {
-ECS_PROFILE();
+    ECS_PROFILE();
     getComponentArray<component_t>()->insert(entity, component);
 }
 template <typename component_t>
 inline void ecs::component_manager::remove(entity const &entity)
 {
-ECS_PROFILE();
-    getComponentArray<component_t>()->remove(entity);
+    ECS_PROFILE();
+    getComponentArray<component_t>()->erase(entity);
 }
 template <typename component_t>
 inline component_t &ecs::component_manager::get(entity const &entity)
 {
-ECS_PROFILE();
+    ECS_PROFILE();
     return getComponentArray<component_t>()->get(entity);
 }
 template <typename component_t>
 inline component_t const &ecs::component_manager::get(entity const &entity) const
 {
-ECS_PROFILE();
+    ECS_PROFILE();
     return getComponentArray<component_t>()->get(entity);
 }
 template <typename component_t>
 inline ecs::component_array<component_t> *ecs::component_manager::getComponentArray()
 {
-ECS_PROFILE();
+    ECS_PROFILE();
     auto id = getComponentID<component_t>();
     ECS_ASSERT(m_componentArrays.contains(id), "component not registered before use");
     return static_cast<component_array<component_t> *>(m_componentArrays.get(id).get());
@@ -825,14 +820,14 @@ ECS_PROFILE();
 template <typename component_t>
 inline ecs::component_array<component_t> const *ecs::component_manager::getComponentArray() const
 {
-ECS_PROFILE();
+    ECS_PROFILE();
     auto id = getComponentID<component_t>();
     ECS_ASSERT(m_componentArrays.contains(id), "component not registered before use");
     return static_cast<component_array<component_t> *>(m_componentArrays.get(id).get());
 }
 inline void ecs::component_manager::entityDestroyed(entity const &entity) const
 {
-ECS_PROFILE();
+    ECS_PROFILE();
     for(auto const &componentArray : m_componentArrays) {
         componentArray->onEntityDestroyed(entity);
     }
@@ -840,7 +835,7 @@ ECS_PROFILE();
 template <typename component_t, class... Args>
 inline void ecs::component_manager::emplace(entity const &entity, Args&&... args)
 {
-ECS_PROFILE();
+    ECS_PROFILE();
     getComponentArray<component_t>()->emplace(entity, std::forward<Args>(args)...);
 }
 inline ecs::component_id ecs::component_manager::m_nextID = 0;
@@ -867,7 +862,7 @@ ECS_PROFILE();
 template <typename component_t>
 inline component_t &ecs::registry::get(entity const &entity) 
 {
-ECS_PROFILE();
+    ECS_PROFILE();
     if(!valid(entity)) 
         ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
     if(!has<component_t>(entity)) 
@@ -878,7 +873,7 @@ ECS_PROFILE();
 template <typename component_t>
 inline component_t const &ecs::registry::get(entity const &entity) const
 {
-ECS_PROFILE();
+    ECS_PROFILE();
     if(!valid(entity)) 
         ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
     if(!has<component_t>(entity)) 
@@ -889,9 +884,7 @@ ECS_PROFILE();
 template <typename... Components_t>
 inline ecs::entity ecs::registry::create()
 {
-ECS_PROFILE();
-    if(!m_entityManager.nextEntityValid())
-        throw std::length_error{"Invalid entity creation. (too many entities?)"};
+    ECS_PROFILE();
     
     (m_componentManager.registerComponent<Components_t>(), ...);
     ecs::signature signature;
@@ -906,9 +899,7 @@ ECS_PROFILE();
 template <typename... Components_t>
 inline ecs::entity ecs::registry::create(Components_t &&...components)
 {
-ECS_PROFILE();
-    if(!m_entityManager.nextEntityValid())
-        throw std::length_error{"Invalid entity creation. (too many entities?)"};
+    ECS_PROFILE();
     
     (m_componentManager.registerComponent<Components_t>(), ...);
     ecs::signature signature;
@@ -923,41 +914,41 @@ ECS_PROFILE();
 template <typename component_t>
 inline void ecs::registry::remove(entity const &entity)
 {
-ECS_PROFILE();
+    ECS_PROFILE();
     if(!valid(entity)) 
         ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
     if(!has<component_t>(entity)) 
         ECS_THROW(std::out_of_range{"component to remove is not added!"});
     
-    m_entityManager.getSignature(entity).set(m_componentManager.getComponentID<component_t>(), false);
+    m_entityManager.setSignature(entity, m_entityManager.getSignature(entity).set(m_componentManager.getComponentID<component_t>(), false));
     m_componentManager.remove<component_t>(entity);
 }
 template <typename component_t, class... Args>
 inline void ecs::registry::emplace(entity const &entity, Args&&... args)
 {
-ECS_PROFILE();
+    ECS_PROFILE();
     if(!valid(entity)) 
         ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
     if(has<component_t>(entity)) 
         ECS_THROW(std::invalid_argument{"component to emplace already added!"});
 
     m_componentManager.emplace<component_t>(entity, std::forward<Args>(args)...);
-    m_entityManager.getSignature(entity).set(m_componentManager.getComponentID<component_t>(), true);
+    m_entityManager.setSignature(entity, m_entityManager.getSignature(entity).set(m_componentManager.getComponentID<component_t>(), true));
 }
 template <typename component_t>
 inline void ecs::registry::add(entity const &entity, component_t const &component)
 {
-ECS_PROFILE();
+    ECS_PROFILE();
     emplace<component_t>(entity, component);
 }
 inline bool ecs::registry::valid(entity const &entity) const
 {
-ECS_PROFILE();
+    ECS_PROFILE();
     return m_entityManager.valid(entity);
 }
 inline void ecs::registry::destroy(ecs::entity const &entity)
 {
-ECS_PROFILE();
+    ECS_PROFILE();
     if(!valid(entity)) 
         ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
 
@@ -965,17 +956,15 @@ ECS_PROFILE();
 
     m_componentManager.entityDestroyed(entity);
 }
-inline std::vector<ecs::entity> ecs::registry::getEntities() const
+inline std::unordered_map<ecs::signature, ecs::sparse_set<ecs::entity>> const &ecs::registry::getEntityGroups() const
 {
-ECS_PROFILE();
-    return m_entityManager.getEntities();
+    ECS_PROFILE();
+    return m_entityManager.getEntityGroups();
 }
 template<typename Type, typename... Other, typename... Exclude>
 inline std::vector<ecs::entity> ecs::registry::view(exclude_t<Exclude...>) const
 {
-ECS_PROFILE();
-
-    auto entities = m_entityManager.getEntities();
+    ECS_PROFILE();
 
     m_componentManager.registerComponent<Type>();
     (m_componentManager.registerComponent<Other>(), ...);
@@ -989,29 +978,13 @@ ECS_PROFILE();
     std::vector<ecs::entity> result;
     result.reserve(10);
 
-    for(auto const &entity : entities)
+    for(auto const &[signature, group] : getEntityGroups())
     {
-        auto signature = m_entityManager.getSignature(entity);
         if((signature & required) == required && (signature & excluded).none())
-            result.emplace_back(entity);
+            result.insert(result.end(), group.begin(), group.end());
     }
 
     return result;
-}
-inline ecs::signature ecs::registry::getSignature(entity const &entity) const
-{
-ECS_PROFILE();
-    if(!valid(entity)) 
-        ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
-
-    return m_entityManager.getSignature(entity);
-}
-template <typename component_t>
-inline ecs::component_id ecs::registry::getComponentID()
-{
-ECS_PROFILE();
-    m_componentManager.registerComponent<component_t>();
-    return m_componentManager.getComponentID<component_t>();
 }
 
 /*! \endcond */
