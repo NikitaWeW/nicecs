@@ -58,13 +58,11 @@ int main()
 }
 ```
 
-## Older development and ai usage
+## Older development
 
 When i asked for a small code review, people was skeptical about the ai usage in this project. "AI bullshit", they said.
 
-I'll be honest, AI code disgusts me. Nonetheless, i did use it to speed up the testing, nothing more. Seeing people criticize me on using it for such an unrelated tasks really upsets me, since in my opinion i did nothing wrong. 
-
-LLM did not touch a line of the actual project nor the documentation. However, i kept the tests, because there is no point in rewriting those.
+LLM did not touch a line of the project nor the documentation. Everything is human-written.
 
 The first commit has a lot of contents, because i was moving the code from my main project to the standalone repo.
 Here are places, where i developed it in the chronological order:
@@ -74,10 +72,10 @@ Here are places, where i developed it in the chronological order:
 - https://github.com/NikitaWeW/ecs (this repo)
 
 ## Tests
-Set the cmake variable `ECS_BUILD_TESTS` to ON:
+Build the cmake project in the tests directory:
 
 ```
-cmake ... -DECS_BUILD_TESTS=ON
+cmake -S tests -B build/tests
 build/tests/tests
 # or
 cd build/tests
