@@ -892,7 +892,7 @@ inline ecs::entity ecs::registry::create()
 
     entity entity = m_entityManager.createEntity(signature);
 
-    (m_componentManager.add(entity, Components_t{}), ...);
+    (m_componentManager.emplace<Components_t>(entity), ...);
 
     return entity;
 }
@@ -907,7 +907,7 @@ inline ecs::entity ecs::registry::create(Components_t &&...components)
 
     entity entity = m_entityManager.createEntity(signature);
 
-    (m_componentManager.add(entity, std::forward<Components_t>(components)), ...);
+    (m_componentManager.emplace<Components_t>(entity, std::forward<Components_t>(components)), ...);
 
     return entity;
 }
