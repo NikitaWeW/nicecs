@@ -98,17 +98,20 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
 
         REQUIRE(reg.valid(e0));
         REQUIRE(reg.empty(e0));
+        REQUIRE(reg.size(e0) == 0);
         REQUIRE_FALSE(reg.has<Position>(e0));
         REQUIRE_FALSE(reg.has<Velocity>(e0));
 
         REQUIRE(reg.valid(e1));
         REQUIRE_FALSE(reg.empty(e1));
+        REQUIRE(reg.size(e1) == 1);
         REQUIRE(reg.has<Position>(e1));
         REQUIRE_FALSE(reg.has<Velocity>(e1));
         REQUIRE(reg.get<Position>(e1) == Position{});
 
         REQUIRE(reg.valid(e2));
         REQUIRE_FALSE(reg.empty(e2));
+        REQUIRE(reg.size(e2) == 2);
         REQUIRE(reg.has<Position>(e2));
         REQUIRE(reg.has<Velocity>(e2));
         REQUIRE(reg.get<Position>(e2) == Position{0.1f, 10});

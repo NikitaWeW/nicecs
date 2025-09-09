@@ -461,9 +461,16 @@ namespace ecs
 
         /**
          * \brief Check if an entity has no components.
+         * \throws std::invalid_argument if the entity is not a valid identifier.
          * \return True if the entity is empty, false otherwise.
          */
         bool empty(entity const &entity);
+
+        /**
+         * \brief Get the number of components in an entity.
+         * \throws std::invalid_argument if the entity is not a valid identifier.
+         */
+        std::size_t size(entity const &entity);
 
         /**
          * \brief Returns a view for the given elements.
@@ -920,7 +927,16 @@ inline void ecs::registry::destroy(ecs::entity const &entity)
 inline bool ecs::registry::empty(entity const &entity)
 {
     ECS_PROFILE();
+    if(!valid(entity)) 
+        ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
     return m_entityManager.getSignature(entity).none();
+}
+inline std::size_t ecs::registry::size(entity const &entity)
+{
+    ECS_PROFILE();
+    if(!valid(entity)) 
+        ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
+    return m_entityManager.getSignature(entity).count();
 }
 inline std::unordered_map<ecs::signature, ecs::sparse_set<ecs::entity>> const &ecs::registry::getEntityGroups() const
 {
