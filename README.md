@@ -1,5 +1,7 @@
 # ECS - My entity component system implementation.
 
+Actually, its just an EC (entity component) as the library provides no systems api, because it is really easy to implement them and each project needs a slightly different approach. Nonetheless, i used the ecs term as it is more common.
+
 An easy-to-integrate, header-only ECS library focused on simplicity and solid performance. Inspired by Austin Morlan’s article on ECS design and the nice api from EnTT.
 
 ## Features
@@ -58,19 +60,6 @@ int main()
 }
 ```
 
-## Older development
-
-When i asked for a small code review, people was skeptical about the ai usage in this project. "AI bullshit", they said.
-
-LLM did not touch a line of the project nor the documentation. Everything is human-written.
-
-The first commit has a lot of contents, because i was moving the code from my main project to the standalone repo.
-Here are places, where i developed it in the chronological order:
-
-- https://github.com/NikitaWeW/breakout/blob/45cb3f0df4f6f5712acfa4df22b055edc37b8200/src/utils/ECS.hpp
-- https://github.com/NikitaWeW/breakout/tree/locked-ecs
-- https://github.com/NikitaWeW/ecs (this repo)
-
 ## Tests
 Build the cmake project in the tests directory:
 
@@ -86,3 +75,16 @@ ctest .
 
 - Austin Morlan’s ECS design: https://austinmorlan.com/posts/entity_component_system  
 - EnTT library: https://github.com/skypjack/entt
+
+## Older development
+
+When i asked for a small code review, people were skeptical about the ai usage in this project. "AI bullshit", they said.
+
+LLM did not touch a line of the project nor the documentation. Everything is human-written.
+
+The first commit has a lot of contents, because i was moving the code from my main project to the standalone repo.
+Here are places, where i developed it in the chronological order:
+
+- https://github.com/NikitaWeW/breakout/blob/45cb3f0df4f6f5712acfa4df22b055edc37b8200/src/utils/ECS.hpp
+- https://github.com/NikitaWeW/breakout/tree/locked-ecs
+- https://github.com/NikitaWeW/ecs (this repo)
