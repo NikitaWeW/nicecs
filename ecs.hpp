@@ -53,7 +53,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 namespace ecs
 {
-    /** \brief Entity ID. */
+    /** \brief Entity ID. Entity 0 is invalid. */
     using entity = std::uint32_t;
     /** \brief Component ID. Used with signature. */
     using component_id = std::uint8_t;
