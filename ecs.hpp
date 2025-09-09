@@ -111,14 +111,6 @@ namespace ecs
         sparse_set &operator=(sparse_set &&) noexcept = default;
 
         /**
-         * \brief Inserts an element to a sparse index.
-         * \param sparse A sparse index.
-         * \param element A lvalue reference to the element to add.
-         * \throws std::invalid_argument If the sparse index already contains an element.
-         */
-        void insert(sparse_type const &sparse, dense_type const &element);
-
-        /**
          * \brief The container is extended by inserting a new element at sparse position. This new element is constructed in place using args as the arguments for its construction.
          * \param sparse A sparse index.
          * \param args Arguments forwarded to construct the new element.
@@ -309,15 +301,6 @@ namespace ecs
         component_id getComponentID() const;
 
         /**
-         * \brief Adds component to an entity.
-         * \param entity A valid entity identifier.
-         * \param component An optional rvalue reference to the component to move.
-         * \tparam component_t A component type.
-         */
-        template <typename component_t> 
-        void add(entity const &entity, component_t const &component);
-
-        /**
          * \brief Emplaces a component to a valid entity.
          * \param entity A valid entity identifier.
          * \param args Arguments forwarded to construct the new component.
@@ -445,16 +428,6 @@ namespace ecs
          */
         template <typename component_t> 
         void remove(entity const &entity);
-        /**
-         * \brief Adds a component to a valid entity.
-         * \param entity A valid entity identifier.
-         * \param component An optional component value to move.
-         * \throws std::invalid_argument if the entity is not a valid identifier.
-         * \throws std::invalid_argument if the component is already added.
-         * \tparam component_t The component type.
-         */
-        template <typename component_t> 
-        void add(entity const &entity, component_t const &component = {});
         
         /**
          * \copydoc component_manager::emplace
@@ -553,12 +526,6 @@ inline void ecs::sparse_set<dense_t>::emplace(sparse_type const &sparse, Args &&
     std::size_t index = m_dense.size() - 1;
     setDenseIndex(sparse, index);
     m_denseToSparse.emplace_back(sparse);
-}
-template <typename dense_t>
-inline void ecs::sparse_set<dense_t>::insert(sparse_type const &sparse, dense_type const &element)
-{
-    ECS_PROFILE();
-    emplace(sparse, element);
 }
 template <typename dense_t>
 inline void ecs::sparse_set<dense_t>::erase(sparse_type const &sparse)
@@ -786,12 +753,6 @@ inline ecs::component_id ecs::component_manager::getComponentID() const
     return id;
 }
 template <typename component_t>
-inline void ecs::component_manager::add(entity const &entity, component_t const &component)
-{
-    ECS_PROFILE();
-    getComponentArray<component_t>()->insert(entity, component);
-}
-template <typename component_t>
 inline void ecs::component_manager::remove(entity const &entity)
 {
     ECS_PROFILE();
@@ -934,12 +895,6 @@ inline void ecs::registry::emplace(entity const &entity, Args&&... args)
 
     m_componentManager.emplace<component_t>(entity, std::forward<Args>(args)...);
     m_entityManager.setSignature(entity, m_entityManager.getSignature(entity).set(m_componentManager.getComponentID<component_t>(), true));
-}
-template <typename component_t>
-inline void ecs::registry::add(entity const &entity, component_t const &component)
-{
-    ECS_PROFILE();
-    emplace<component_t>(entity, component);
 }
 inline bool ecs::registry::valid(entity const &entity) const
 {
