@@ -35,27 +35,36 @@ struct position {
 struct velocity {
     float dx;
     float dy;
+
+    velocity(float dx = 0, float dy = 0) : dx(dx), dy(dy) 
+    {}
 };
 struct tag {};
 
 int main()
 {
     ecs::registry registry;
-    
-    for(auto i = 0u; i < 10u; ++i) {
+
+    for(auto i = 0u; i < 10u; ++i) 
+    {
         const auto entity = registry.create();
         registry.emplace<position>(entity, i * 1.f, i * 1.f);
-        if(i % 2 == 0) { registry.emplace<velocity>(entity, i * .1f, i * .1f); }
-        
-        std::vector<ecs::entity> view = registry.view<position, velocity>(ecs::exclude_t<tag>{});
-
-        for(auto const &e : view) {
-            registry.get<position>(e).x += registry.get<velocity>(e).dx;
-            registry.get<position>(e).y += registry.get<velocity>(e).dy;
+        if(i % 2 == 0) 
+        { 
+            registry.emplace<velocity>(entity, i * .1f, i * .1f); 
         }
+        if(i == 8)
+        {
+            registry.emplace<tag>(entity);
+        }
+    }
 
-        if(i%2==0)
-            registry.destroy(entity);
+    auto view = registry.view<position, velocity>(ecs::exclude_t<tag>{});
+
+    for(auto const &e : view) 
+    {
+        registry.get<position>(e).x += registry.get<velocity>(e).dx;
+        registry.get<position>(e).y += registry.get<velocity>(e).dy;
     }
 }
 ```

@@ -460,6 +460,12 @@ namespace ecs
         void destroy(entity const &entity);
 
         /**
+         * \brief Check if an entity has no components.
+         * \return True if the entity is empty, false otherwise.
+         */
+        bool empty(entity const &entity);
+
+        /**
          * \brief Returns a view for the given elements.
          * \tparam Type Type of element used to construct the view.
          * \tparam Other Other types of elements used to construct the view.
@@ -910,6 +916,11 @@ inline void ecs::registry::destroy(ecs::entity const &entity)
     m_entityManager.destroyEntity(entity);
 
     m_componentManager.entityDestroyed(entity);
+}
+inline bool ecs::registry::empty(entity const &entity)
+{
+    ECS_PROFILE();
+    return m_entityManager.getSignature(entity).none();
 }
 inline std::unordered_map<ecs::signature, ecs::sparse_set<ecs::entity>> const &ecs::registry::getEntityGroups() const
 {

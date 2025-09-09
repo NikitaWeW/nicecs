@@ -97,15 +97,18 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         ecs::entity e3 = 0;
 
         REQUIRE(reg.valid(e0));
+        REQUIRE(reg.empty(e0));
         REQUIRE_FALSE(reg.has<Position>(e0));
         REQUIRE_FALSE(reg.has<Velocity>(e0));
 
         REQUIRE(reg.valid(e1));
+        REQUIRE_FALSE(reg.empty(e1));
         REQUIRE(reg.has<Position>(e1));
         REQUIRE_FALSE(reg.has<Velocity>(e1));
         REQUIRE(reg.get<Position>(e1) == Position{});
 
         REQUIRE(reg.valid(e2));
+        REQUIRE_FALSE(reg.empty(e2));
         REQUIRE(reg.has<Position>(e2));
         REQUIRE(reg.has<Velocity>(e2));
         REQUIRE(reg.get<Position>(e2) == Position{0.1f, 10});
@@ -125,13 +128,15 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         REQUIRE_FALSE(reg.has<Position>(e));
         REQUIRE_FALSE(reg.has<Velocity>(e));
 
-
         reg.emplace<Position>(e, 0.0f, 0.0f);
+        REQUIRE(reg.valid(e));
         REQUIRE(reg.has<Position>(e));
         REQUIRE(reg.get<Position>(e) == Position{0.0f, 0.0f});
 
         reg.remove<Position>(e);
+        REQUIRE(reg.valid(e));
         REQUIRE_FALSE(reg.has<Position>(e));
+        REQUIRE(reg.empty(e));
         REQUIRE_THROWS_AS(reg.get<Position>(e), std::out_of_range);
     }
 
@@ -165,16 +170,10 @@ TEST_CASE("Registry example", "[ecs][ecs::registry]")
     struct position {
         float x;
         float y;
-
-        position(float x = 0, float y = 0) : x(x), y(y) 
-        {}
     };
     struct velocity {
         float dx;
         float dy;
-
-        velocity(float dx = 0, float dy = 0) : dx(dx), dy(dy) 
-        {}
     };
     struct tag {};
 
