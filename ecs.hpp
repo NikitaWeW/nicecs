@@ -208,7 +208,7 @@ namespace ecs
         /**
          * \brief Creates entity with an optional signature.
          * \param signature A signature representing components the entity has (optional).
-         * \return Unique entity id managed by entity_manager.
+         * \return Unique entity id.
          */
         entity createEntity(signature signature = {});
         /**
@@ -226,9 +226,9 @@ namespace ecs
         /**
          * \brief Gets the signature of a valid entity.
          * \param entity A valid entity identifier.
-         * \return A copy of a signature, describing the components an entity has.
+         * \return A const reference to a signature, describing the components an entity has.
          */
-        signature getSignature(entity const &entity) const;
+        signature const &getSignature(entity const &entity) const;
 
         /**
          * \brief Get entities of this manager.
@@ -301,47 +301,20 @@ namespace ecs
         component_id getComponentID() const;
 
         /**
-         * \brief Emplaces a component to a valid entity.
-         * \param entity A valid entity identifier.
-         * \param args Arguments forwarded to construct the new component.
-         */
-        template <typename component_t, class... Args>
-        void emplace(entity const &entity, Args&&... args);
-
-        /**
-         * \brief Removes component from an entity.
-         * \param entity A valid entity identifier.
-         * \tparam component_t A component type.
-         */
-        template <typename component_t> 
-        void remove(entity const &entity);
-
-        /**
-         * \brief Gets a component of an entity.
-         * Not synchronized!
-         * \param entity A valid entity identifier.
-         * \tparam component_t The component type.
-         * \return A component lvalue reference.
-         */
-        template <typename component_t> 
-        component_t &get(entity const &entity);
-
-        /** \copydoc get */
-        template <typename component_t> 
-        component_t const &get(entity const &entity) const;
-
-        /**
          * \brief Notify component arrays that the entity is destroyed.
          * \param entity A deleted entity identifier.
          */
         void entityDestroyed(entity const &entity) const;
-    private:
-        /*! \cond Doxygen_Suppress */
+
+        /**
+         * \brief Get the component array associated with the given component type.
+         * \tparam component_t The component type.
+         */
         template <typename component_t> 
         component_array<component_t> *getComponentArray();
+        /** \copydoc getComponentArray */
         template <typename component_t>
         component_array<component_t> const *getComponentArray() const;
-        /*! \endcond */
     };
 
     /**
@@ -394,7 +367,13 @@ namespace ecs
          * \return The signature with all the required components set.
          */
         template<typename... Components_t>
-        constexpr signature makeSignature() const;
+        signature makeSignature() const;
+
+        /** 
+         * \copydoc entity_manager::getSignature 
+         * \throws std::invalid_argument if the entity is not a valid identifier.
+        */
+        signature const &getSignature(entity const &entity) const;
 
         /**
          * \brief Checks if a valid entity has a component.
@@ -438,16 +417,26 @@ namespace ecs
         void emplace(entity const &entity, Args&&... args);
 
         /**
-         * \brief Creates entity with optional components.
+         * \brief Create an entity.
+         * \param signature The signature describing the components the entity has.
+         * \return Unique valid entity id.
+         * Use ecs::registry::makeSignature or ecs::registry::getSignature to obtain a signature.
+         */
+        entity create(signature signature);
+
+        /**
+         * \brief Create an entity.
          * \tparam Components_t Components (optional).
-         * \return Unique valid entity id managed by entity_manager.
+         * \return Unique valid entity id.
          */
         template <typename... Components_t> 
         entity create();
 
         /**
-         * \copydoc create
+         * \brief Create an entity.
+         * \tparam Components_t Components (optional).
          * \param components The components to move in.
+         * \return Unique valid entity id.
          */
         template <typename... Components_t> 
         entity create(Components_t&&... components);
@@ -474,16 +463,24 @@ namespace ecs
 
         /**
          * \brief Returns a view for the given elements.
-         * \tparam Type Type of element used to construct the view.
-         * \tparam Other Other types of elements used to construct the view.
+         * \param required The signature describing the components of included elements used to construct the view.
+         * \param excluded The signature describing the components of elements used to filter the view.
+         * \return A view on entities that are valid at the time of calling this member function and contain given included components and do not contain excluded ones at the time of calling this member function.
+         */
+        std::vector<entity> view(signature required, signature excluded) const;
+
+        /**
+         * \brief Returns a view for the given elements.
+         * \tparam Include Types of included elements used to construct the view.
          * \tparam Exclude Types of elements used to filter the view.
          * \param toExclude The type list used to deduce Exclude variadic template argument.
          * \return A view on entities that are valid at the time of calling this member function and contain given included components and do not contain excluded ones at the time of calling this member function.
          */
-        template<typename Type, typename... Other, typename... Exclude>
+        template<typename... Include, typename... Exclude>
         std::vector<entity> view(exclude_t<Exclude...> toExclude = exclude_t{}) const;
 
         /**
+         * \brief Get the entities of the registry.
          * \return Get a map of the sparse sets of all the valid entities of this registry with their signatures as its key.
          */
         std::unordered_map<signature, sparse_set<entity>> const &getEntityGroups() const;
@@ -500,7 +497,7 @@ template <typename dense_t>
 inline void ecs::sparse_set<dense_t>::setDenseIndex(sparse_type const &sparse, std::size_t index)
 {
     ECS_PROFILE();
-    if(sparse < 0)
+    if(sparse < 0) // In case i would change the sparse_type to signed.
         return;
 
     if(sparse >= m_sparse.size())
@@ -586,7 +583,7 @@ inline void ecs::sparse_set<dense_t>::shrink_to_fit()
     m_dense.shrink_to_fit();
     m_denseToSparse.shrink_to_fit();
 
-    auto maxIterator = std::max(m_denseToSparse.begin(), m_denseToSparse.end());
+    auto maxIterator = std::max_element(m_denseToSparse.begin(), m_denseToSparse.end());
     sparse_type maxIndex = maxIterator != m_denseToSparse.end() ? *maxIterator : 0;
     m_sparse.resize(maxIndex);
     m_sparse.shrink_to_fit();
@@ -723,7 +720,7 @@ inline void ecs::entity_manager::setSignature(entity const &entity, signature si
     m_entityGroups[signature].emplace(entity, entity);
 
 }
-inline ecs::signature ecs::entity_manager::getSignature(entity const &entity) const
+inline ecs::signature const &ecs::entity_manager::getSignature(entity const &entity) const
 {
     ECS_PROFILE();
     ECS_ASSERT(valid(entity), "invalid entity identifier!");
@@ -766,24 +763,6 @@ inline ecs::component_id ecs::component_manager::getComponentID() const
     return id;
 }
 template <typename component_t>
-inline void ecs::component_manager::remove(entity const &entity)
-{
-    ECS_PROFILE();
-    getComponentArray<component_t>()->erase(entity);
-}
-template <typename component_t>
-inline component_t &ecs::component_manager::get(entity const &entity)
-{
-    ECS_PROFILE();
-    return getComponentArray<component_t>()->get(entity);
-}
-template <typename component_t>
-inline component_t const &ecs::component_manager::get(entity const &entity) const
-{
-    ECS_PROFILE();
-    return getComponentArray<component_t>()->get(entity);
-}
-template <typename component_t>
 inline ecs::component_array<component_t> *ecs::component_manager::getComponentArray()
 {
     ECS_PROFILE();
@@ -806,32 +785,25 @@ inline void ecs::component_manager::entityDestroyed(entity const &entity) const
         componentArray->onEntityDestroyed(entity);
     }
 }
-template <typename component_t, class... Args>
-inline void ecs::component_manager::emplace(entity const &entity, Args&&... args)
-{
-    ECS_PROFILE();
-    getComponentArray<component_t>()->emplace(entity, std::forward<Args>(args)...);
-}
 inline ecs::component_id ecs::component_manager::m_nextID = 0;
 
-ECS_PROFILE();
 template <typename... Components_t>
-constexpr ecs::signature ecs::registry::makeSignature() const
+inline ecs::signature ecs::registry::makeSignature() const
 {
     (m_componentManager.registerComponent<Components_t>(), ...);
-    ecs::signature signature;
+    signature signature;
     (signature.set(m_componentManager.getComponentID<Components_t>()), ...);
     return signature;
 }
 template <typename component_t>
 inline bool ecs::registry::has(entity const &entity) const
 { 
-ECS_PROFILE();
+    ECS_PROFILE();
     if(!valid(entity)) 
         ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
     
     m_componentManager.registerComponent<component_t>();
-    return m_entityManager.getSignature(entity).test(m_componentManager.getComponentID<component_t>()); 
+    return getSignature(entity).test(m_componentManager.getComponentID<component_t>()); 
 }
 template <typename component_t>
 inline component_t &ecs::registry::get(entity const &entity) 
@@ -842,7 +814,7 @@ inline component_t &ecs::registry::get(entity const &entity)
     if(!has<component_t>(entity)) 
         ECS_THROW(std::out_of_range{"component to get is not added!"});
     
-    return m_componentManager.get<component_t>(entity);
+    return m_componentManager.getComponentArray<component_t>()->get(entity);
 }
 template <typename component_t>
 inline component_t const &ecs::registry::get(entity const &entity) const
@@ -853,7 +825,12 @@ inline component_t const &ecs::registry::get(entity const &entity) const
     if(!has<component_t>(entity)) 
         ECS_THROW(std::out_of_range{"component to get is not added!"});
     
-    return m_componentManager.get<component_t>(entity);
+    return m_componentManager.getComponentArray<component_t>()->get(entity);
+}
+inline ecs::entity ecs::registry::create(signature signature)
+{
+    ECS_PROFILE();
+    return m_entityManager.createEntity(signature);
 }
 template <typename... Components_t>
 inline ecs::entity ecs::registry::create()
@@ -861,12 +838,12 @@ inline ecs::entity ecs::registry::create()
     ECS_PROFILE();
     
     (m_componentManager.registerComponent<Components_t>(), ...);
-    ecs::signature signature;
+    signature signature;
     (signature.set(m_componentManager.getComponentID<Components_t>()), ...);
 
-    entity entity = m_entityManager.createEntity(signature);
+    entity entity = create(signature);
 
-    (m_componentManager.emplace<Components_t>(entity), ...);
+    (m_componentManager.getComponentArray<Components_t>()->emplace(entity), ...);
 
     return entity;
 }
@@ -876,12 +853,12 @@ inline ecs::entity ecs::registry::create(Components_t &&...components)
     ECS_PROFILE();
     
     (m_componentManager.registerComponent<Components_t>(), ...);
-    ecs::signature signature;
+    signature signature;
     (signature.set(m_componentManager.getComponentID<Components_t>()), ...);
 
-    entity entity = m_entityManager.createEntity(signature);
+    entity entity = create(signature);
 
-    (m_componentManager.emplace<Components_t>(entity, std::forward<Components_t>(components)), ...);
+    (m_componentManager.getComponentArray<Components_t>()->emplace(entity, std::forward<Components_t>(components)), ...);
 
     return entity;
 }
@@ -894,8 +871,8 @@ inline void ecs::registry::remove(entity const &entity)
     if(!has<component_t>(entity)) 
         ECS_THROW(std::out_of_range{"component to remove is not added!"});
     
-    m_entityManager.setSignature(entity, m_entityManager.getSignature(entity).set(m_componentManager.getComponentID<component_t>(), false));
-    m_componentManager.remove<component_t>(entity);
+    m_entityManager.setSignature(entity, signature{getSignature(entity)}.set(m_componentManager.getComponentID<component_t>(), false));
+    m_componentManager.getComponentArray<component_t>()->erase(entity);
 }
 template <typename component_t, class... Args>
 inline void ecs::registry::emplace(entity const &entity, Args&&... args)
@@ -906,13 +883,20 @@ inline void ecs::registry::emplace(entity const &entity, Args&&... args)
     if(has<component_t>(entity)) 
         ECS_THROW(std::invalid_argument{"component to emplace already added!"});
 
-    m_componentManager.emplace<component_t>(entity, std::forward<Args>(args)...);
-    m_entityManager.setSignature(entity, m_entityManager.getSignature(entity).set(m_componentManager.getComponentID<component_t>(), true));
+    m_componentManager.getComponentArray<component_t>()->emplace(entity, std::forward<Args>(args)...);
+    m_entityManager.setSignature(entity, signature{getSignature(entity)}.set(m_componentManager.getComponentID<component_t>(), true));
 }
 inline bool ecs::registry::valid(entity const &entity) const
 {
     ECS_PROFILE();
     return m_entityManager.valid(entity);
+}
+inline ecs::signature const &ecs::registry::getSignature(entity const &entity) const
+{
+    ECS_PROFILE();
+    if(!valid(entity)) 
+        ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
+    return m_entityManager.getSignature(entity);
 }
 inline void ecs::registry::destroy(ecs::entity const &entity)
 {
@@ -921,7 +905,6 @@ inline void ecs::registry::destroy(ecs::entity const &entity)
         ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
 
     m_entityManager.destroyEntity(entity);
-
     m_componentManager.entityDestroyed(entity);
 }
 inline bool ecs::registry::empty(entity const &entity)
@@ -929,34 +912,23 @@ inline bool ecs::registry::empty(entity const &entity)
     ECS_PROFILE();
     if(!valid(entity)) 
         ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
-    return m_entityManager.getSignature(entity).none();
+    return getSignature(entity).none();
 }
 inline std::size_t ecs::registry::size(entity const &entity)
 {
     ECS_PROFILE();
     if(!valid(entity)) 
         ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
-    return m_entityManager.getSignature(entity).count();
+    return getSignature(entity).count();
 }
 inline std::unordered_map<ecs::signature, ecs::sparse_set<ecs::entity>> const &ecs::registry::getEntityGroups() const
 {
     ECS_PROFILE();
     return m_entityManager.getEntityGroups();
 }
-template<typename Type, typename... Other, typename... Exclude>
-inline std::vector<ecs::entity> ecs::registry::view(exclude_t<Exclude...>) const
+inline std::vector<ecs::entity> ecs::registry::view(signature required, signature excluded) const
 {
-    ECS_PROFILE();
-
-    m_componentManager.registerComponent<Type>();
-    (m_componentManager.registerComponent<Other>(), ...);
-    (m_componentManager.registerComponent<Exclude>(), ...);
-    ecs::signature required;
-    required.set(m_componentManager.getComponentID<Type>());
-    (required.set(m_componentManager.getComponentID<Other>()), ...);
-    ecs::signature excluded;
-    (excluded.set(m_componentManager.getComponentID<Exclude>()), ...);
-
+    // TODO: archetypes
     std::vector<ecs::entity> result;
     result.reserve(10);
 
@@ -967,6 +939,20 @@ inline std::vector<ecs::entity> ecs::registry::view(exclude_t<Exclude...>) const
     }
 
     return result;
+}
+template<typename... Include, typename... Exclude>
+inline std::vector<ecs::entity> ecs::registry::view(exclude_t<Exclude...>) const
+{
+    ECS_PROFILE();
+
+    (m_componentManager.registerComponent<Include>(), ...);
+    (m_componentManager.registerComponent<Exclude>(), ...);
+    ecs::signature required;
+    (required.set(m_componentManager.getComponentID<Include>()), ...);
+    ecs::signature excluded;
+    (excluded.set(m_componentManager.getComponentID<Exclude>()), ...);
+
+    return view(required, excluded);
 }
 
 /*! \endcond */

@@ -143,6 +143,41 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         REQUIRE_THROWS_AS(reg.get<Position>(e), std::out_of_range);
     }
 
+    SECTION("signature manipulation")
+    {
+        {
+            ecs::signature sig;
+            ecs::entity e = reg.create(sig);
+
+            REQUIRE(reg.valid(e));
+            REQUIRE(reg.empty(e));
+            REQUIRE(reg.size(e) == 0);
+            REQUIRE_FALSE(reg.has<Position>(e));
+            REQUIRE_FALSE(reg.has<Velocity>(e));
+            REQUIRE_THROWS_AS(reg.remove<Position>(e), std::out_of_range);
+        }
+        {
+            auto sig0 = reg.makeSignature<>();
+            REQUIRE(sig0.none());
+            auto sig1 = reg.makeSignature<Position>();
+            REQUIRE(sig1.count() == 1);
+            auto sig2 = reg.makeSignature<Position, Velocity>();
+            REQUIRE(sig2.count() == 2);
+        }
+        {
+            ecs::entity e = reg.create<Position, Velocity>();
+            ecs::signature exected = reg.makeSignature<Position, Velocity>();
+            REQUIRE(reg.getSignature(e) == exected);
+        }
+        {
+            ecs::entity e = reg.create(reg.makeSignature<Position, Velocity>());
+            REQUIRE(reg.has<Position>(e));
+            REQUIRE(reg.has<Velocity>(e));
+            REQUIRE(reg.getSignature(e) == reg.makeSignature<Position, Velocity>());
+            REQUIRE(reg.size(e) == 2);
+        }
+    }
+
     SECTION("views")
     {
         auto e0 = reg.create();
@@ -155,7 +190,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         REQUIRE(std::find(posView.begin(), posView.end(), e1) != posView.end());
         REQUIRE(std::find(posView.begin(), posView.end(), e2) != posView.end());
 
-        auto posOnly = reg.view<Position>(ecs::exclude_t<Velocity>{});
+        auto posOnly = reg.view(reg.makeSignature<Position>(), reg.makeSignature<Velocity>());
         REQUIRE(posOnly.size() == 1);
         REQUIRE(std::find(posOnly.begin(), posOnly.end(), e0) == posOnly.end());
         REQUIRE(std::find(posOnly.begin(), posOnly.end(), e1) != posOnly.end());
