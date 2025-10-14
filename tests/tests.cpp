@@ -2,8 +2,10 @@
 #define ECS_SPARSE_SET_THROW ECS_THROW
 #include "ecs.hpp"
 #include "ecs.hpp" // check if there are no odr issues
-#include <vector>
 #include "types.hpp"
+
+#include <vector>
+#include <set>
 
 /*! \cond Doxygen_Suppress */
 
@@ -60,6 +62,59 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]")
     REQUIRE_THROWS_AS(s.get(0), std::out_of_range);
     REQUIRE_THROWS_AS(s[0], std::out_of_range);
     REQUIRE_THROWS_AS(s.erase(0), std::out_of_range);
+
+    s.emplace(1, "Position");
+    s.emplace(2, "Velocity");
+    s.emplace(3, "C");
+    s.emplace(4, "D");
+    s.emplace(5, "E");
+    s.emplace(6, "F");
+
+    REQUIRE(s.data().size() == 6);
+    REQUIRE(s.getDenseToSparse().size() == 6);
+
+    s.clear();
+
+    REQUIRE(s.data().size() == 0);
+    REQUIRE(s.sparseData().size() == 0);
+    REQUIRE(s.getDenseToSparse().size() == 0);
+
+    s.emplace(2, "Velocity");
+    s.emplace(4, "D");
+    s.emplace(6, "F");
+    s.emplace(1, "Position");
+    s.emplace(5, "E");
+    s.emplace(3, "C");
+
+    std::vector<std::pair<std::size_t, std::string>> seen;
+    for (auto it = s.begin(); it != s.end(); ++it) {
+        auto [s, d] = *it;
+        seen.emplace_back(s, d);
+    }
+    REQUIRE(seen.size() == 6);
+
+    REQUIRE(seen[0].first == 2); REQUIRE(seen[0].second == "Velocity");
+    REQUIRE(seen[1].first == 4); REQUIRE(seen[1].second == "D");
+    REQUIRE(seen[2].first == 6); REQUIRE(seen[2].second == "F");
+    REQUIRE(seen[3].first == 1); REQUIRE(seen[3].second == "Position");
+    REQUIRE(seen[4].first == 5); REQUIRE(seen[4].second == "E");
+    REQUIRE(seen[5].first == 3); REQUIRE(seen[5].second == "C");
+
+    for (auto it = s.begin(); it != s.end(); ++it) {
+        auto [s, d] = *it;
+        if (s == 3) d = "Cucumber";
+    }
+    REQUIRE(s.get(3) == "Cucumber");
+
+    auto it = s.begin();
+    REQUIRE((it + 1) != it);
+    auto pair1 = *(it + 1);
+    REQUIRE(pair1.first == s.getDenseToSparse()[1]);
+    auto pr = it[2];
+    REQUIRE(pr.second == "F");
+
+    auto it2 = s.begin() + 3;
+    REQUIRE((it2 - s.begin()) == 3);
 }
 TEST_CASE("emplacement of a aggregate type in the sparse set", "[ecs][ecs::sparse_set]")
 {
@@ -135,19 +190,12 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
 
     SECTION("signature manipulation")
     {
-        {
-            auto sig0 = ecs::make_signature<>();
-            REQUIRE(sig0.none());
-            auto sig1 = ecs::make_signature<Position>();
-            REQUIRE(sig1.count() == 1);
-            auto sig2 = ecs::make_signature<Position, Velocity>();
-            REQUIRE(sig2.count() == 2);
-        }
-        {
-            ecs::entity e = reg.create<Position, Velocity>();
-            ecs::signature exected = ecs::make_signature<Position, Velocity>();
-            REQUIRE(reg.getSignature(e) == exected);
-        }
+        auto sig0 = ecs::make_signature<>();
+        REQUIRE(sig0.none());
+        auto sig1 = ecs::make_signature<Position>();
+        REQUIRE(sig1.count() == 1);
+        auto sig2 = ecs::make_signature<Position, Velocity>();
+        REQUIRE(sig2.count() == 2);
     }
 
     SECTION("views")
@@ -162,7 +210,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         REQUIRE(std::find(posView.begin(), posView.end(), e1) != posView.end());
         REQUIRE(std::find(posView.begin(), posView.end(), e2) != posView.end());
 
-        auto posOnly = reg.view(ecs::make_signature<Position>(), ecs::make_signature<Velocity>());
+        auto posOnly = reg.view<Position>(ecs::exclude_t<Velocity>{});
         REQUIRE(posOnly.size() == 1);
         REQUIRE(std::find(posOnly.begin(), posOnly.end(), e0) == posOnly.end());
         REQUIRE(std::find(posOnly.begin(), posOnly.end(), e1) != posOnly.end());
@@ -196,16 +244,75 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         auto entities = reg.view<>();
         for(auto e : entities)
         {
-            auto sig = reg.getSignature(e);
-            e0_found += sig == reg.getSignature(e0) && reg.get<Position>(e) == Position{1, 0};
-            e1_found += sig == reg.getSignature(e1) && reg.get<Position>(e) == Position{0, 1} && reg.get<Velocity>(e) == Velocity{1, 1};
-            e2_found += sig == reg2.getSignature(e2) && reg.get<Tag>(e) == Tag{"Hello, World!"};
-            e3_found += sig == reg2.getSignature(e3) && reg.get<Position>(e) == Position{1, 1} && reg.get<Velocity>(e) == Velocity{0, 0};
+            e0_found += reg.same(e, e0) && reg.get<Position>(e) == Position{1, 0};
+            e1_found += reg.same(e, e1) && reg.get<Position>(e) == Position{0, 1} && reg.get<Velocity>(e) == Velocity{1, 1};
+            e2_found += reg.same(e, e2, reg2) && reg.get<Tag>(e) == Tag{"Hello, World!"};
+            e3_found += reg.same(e, e3, reg2) && reg.get<Position>(e) == Position{1, 1} && reg.get<Velocity>(e) == Velocity{0, 0};
         }
 
         REQUIRE((e0_found == 1 && e1_found == 1 && e2_found == 1 && e3_found == 1));
     }
+
+    SECTION("registry component copy semantics")
+    {
+        auto e1 = reg.create<Health>(Health{42});
+
+        ecs::registry second = reg;
+
+        REQUIRE(second.valid(e1));
+        REQUIRE(second.has<Health>(e1));
+        CHECK(second.get<Health>(e1).hp == 42);
+
+        second.get<Health>(e1).hp = 7;
+
+        REQUIRE(reg.get<Health>(e1).hp != 7);
+    }
+    SECTION("registry entity copy semantics")
+    {
+        ecs::registry reg;
+
+        std::vector<ecs::entity> original_ids;
+        for(int i = 0; i < 10; ++i) 
+        {
+            auto e = reg.create<Position, Health>(Position{float(i), float(i)}, Health{unsigned(i)});
+            original_ids.push_back(e);
+        }
+        std::set<ecs::entity> all_ids(original_ids.begin(), original_ids.end());
+        REQUIRE(all_ids.size() == original_ids.size());
+
+        ecs::registry copy = reg;
+
+        std::vector<ecs::entity> copy_ids;
+        for(int i = 0; i < 10; ++i) 
+        {
+            auto e = copy.create<Position, Health>(Position{float(i+100), float(i+100)}, Health{unsigned(i)+100});
+            copy_ids.push_back(e);
+        }
+
+        REQUIRE(reg.size() == original_ids.size());
+        REQUIRE(copy.size() == copy_ids.size() + original_ids.size());
+
+        for(auto e : copy_ids) 
+        {
+            REQUIRE(all_ids.find(e) == all_ids.end());
+        }
+
+        for(auto e : original_ids) 
+        {
+            REQUIRE(reg.valid(e));
+            REQUIRE(reg.has<Position>(e));
+            REQUIRE(reg.has<Health>(e));
+        }
+
+        for(auto e : copy_ids) 
+        {
+            REQUIRE(copy.valid(e));
+            REQUIRE(copy.has<Position>(e));
+            REQUIRE(copy.has<Health>(e));
+        }
+    }
 }
+
 TEST_CASE("Registry example", "[ecs][ecs::registry]")
 {
     ecs::registry registry;

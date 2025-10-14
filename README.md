@@ -69,11 +69,11 @@ int main()
 }
 ```
 
-## Tests
+## Tests and benchmarks
 Build the cmake project in the tests directory:
 
 ```
-cmake -S tests -B build/tests
+cmake -S tests -B build/tests -D CMAKE_BUILD_TYPE=Release
 build/tests/tests
 # or
 cd build/tests
@@ -84,6 +84,28 @@ ctest .
 
 - Austin Morlan’s ECS design: https://austinmorlan.com/posts/entity_component_system  
 - EnTT library: https://github.com/skypjack/entt
+
+## Latest Benchmarks
+```
+-------------------------------------------------------------------------------
+ecs::registry benchmarks
+-------------------------------------------------------------------------------
+benchmark name                       samples       iterations    est run time
+                                     mean          low mean      high mean
+                                     std dev       low std dev   high std dev
+-------------------------------------------------------------------------------
+view                                           100           178     1.3172 ms 
+                                        78.0993 ns    76.0046 ns    85.6976 ns 
+                                        18.1363 ns    4.97324 ns    41.7022 ns 
+                                                                               
+merged                                         100             1    88.5168 ms 
+                                        880.299 us    874.434 us    888.826 us 
+                                        35.8386 us    27.2969 us    45.8779 us 
+                                                                               
+create and emplace                             100             3     1.8255 ms 
+                                        9.43451 us    9.25802 us    9.81493 us 
+                                        1.26295 us    725.996 ns     2.4677 us 
+```
 
 ## Older development
 
