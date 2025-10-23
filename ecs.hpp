@@ -1,8 +1,8 @@
 /*
       ___  ___ ___ 
-     / _ \/ __/ __|        Copyright (c) 2024 Nikita Martynau
-    |  __/ (__\__ \        https://opensource.org/license/mit
-     \___|\___|___/ v1.4.1 https://github.com/nikitawew/ecs  
+     / _ \/ __/ __|        Copyright (c) 2024 Nikita Martynau 
+    |  __/ (__\__ \        https://opensource.org/license/mit 
+     \___|\___|___/ v1.4.1 https://github.com/nikitawew/nicecs
 
 Thanks to this article: https://austinmorlan.com/posts/entity_component_system.
 Took a bit of inspiration from https://github.com/skypjack/entt.
