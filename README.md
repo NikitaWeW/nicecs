@@ -10,8 +10,8 @@ Actually, its just an EC (entity component) as the library provides no systems a
 
 ## Integration
 
-`ecs.hpp` contains the entire library. The `ecs::registry` contains the api.
-The library works with [cpm.cmake](https://github.com/cpm-cmake/CPM.cmake).
+`nicecs/ecs.hpp` contains the entire library. The `ecs::registry` contains the api.
+The library works well with [cpm.cmake](https://github.com/cpm-cmake/CPM.cmake).
 
 ## Documentation
 Documentation is generated using doxygen. Simply run

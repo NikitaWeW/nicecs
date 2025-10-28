@@ -1,7 +1,7 @@
 #include "catch2/catch_test_macros.hpp"
 #define ECS_SPARSE_SET_THROW ECS_THROW
-#include "ecs.hpp"
-#include "ecs.hpp" // check if there are no odr issues
+#include "nicecs/ecs.hpp"
+#include "nicecs/ecs.hpp" // check if there are no odr issues
 #include "types.hpp"
 
 #include <vector>

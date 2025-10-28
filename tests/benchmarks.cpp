@@ -1,6 +1,6 @@
 #include "catch2/catch_test_macros.hpp"
 #include "catch2/benchmark/catch_benchmark.hpp"
-#include "ecs.hpp"
+#include "nicecs/ecs.hpp"
 #include "types.hpp"
 
 #include <random>
@@ -66,7 +66,7 @@ static ecs::registry make_registry()
     return reg;
 }
 
-TEST_CASE("ecs::registry benchmarks", "[benchmark][ecs::registry]")
+TEST_CASE("ecs::registry benchmarks", "[benchmark][ecs][ecs::registry]")
 {
     {
         auto const registry = make_registry();

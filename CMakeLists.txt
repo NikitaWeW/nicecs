@@ -7,5 +7,6 @@ project(ECS CXX)
 cmake_policy(SET CMP0076 NEW)
 
 add_library(ecs INTERFACE)
-target_sources(ecs PUBLIC ecs.hpp)
+target_sources(ecs PUBLIC nicecs/ecs.hpp)
 target_include_directories(ecs INTERFACE .)
+add_library(nicecs::ecs ALIAS ecs)

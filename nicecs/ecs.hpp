@@ -2,7 +2,7 @@
       ___  ___ ___ 
      / _ \/ __/ __|        Copyright (c) 2024 Nikita Martynau 
     |  __/ (__\__ \        https://opensource.org/license/mit 
-     \___|\___|___/ v1.4.1 https://github.com/nikitawew/nicecs
+     \___|\___|___/ v1.4.2 https://github.com/nikitawew/nicecs
 
 Thanks to this article: https://austinmorlan.com/posts/entity_component_system.
 Took a bit of inspiration from https://github.com/skypjack/entt.
@@ -66,13 +66,14 @@ namespace ecs
     /** \brief Component ID. Used with signature. */
     using component_id = std::uint16_t;
 
-    /** \brief Controls the maximum number of registered components allowed to exist simultaneously. */
+    /** \brief Controls the maximum number of registered components allowed to be registered. */
     constexpr component_id MAX_COMPONENTS = 1024;
 
     /**
      * \brief Used to track which components entity has. 
      * As an example, if Transform has type 0, RigidBody has type 1, and Gravity has type 2, an entity that “has” those three components would have a signature of 0b111 (bits 0, 1, and 2 are set).
      * Important: signatures are uniform across registries.
+     * TODO: If MAX_COMPONENTS becomes an issue, use std::vector<bool>
      */
     using signature = std::bitset<MAX_COMPONENTS>;
 
