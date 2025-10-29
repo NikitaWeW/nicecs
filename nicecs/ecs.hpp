@@ -2,7 +2,7 @@
       ___  ___ ___ 
      / _ \/ __/ __|        Copyright (c) 2024 Nikita Martynau 
     |  __/ (__\__ \        https://opensource.org/license/mit 
-     \___|\___|___/ v1.5.0 https://github.com/nikitawew/nicecs
+     \___|\___|___/ v1.5.1 https://github.com/nikitawew/nicecs
 
 Thanks to this article: https://austinmorlan.com/posts/entity_component_system.
 Took a bit of inspiration from https://github.com/skypjack/entt.
@@ -476,33 +476,15 @@ namespace ecs
     };
 
     /**
-     * \brief A class to push around lists of types.
-     * \tparam Type Types provided by the type list.
-     */
-    template<typename... Type>
-    struct type_list {
-        /*! \brief Type list type. */
-        using type = type_list;
-        /*! \brief Compile-time number of elements in the type list. */
-        static constexpr auto size = sizeof...(Type);
-    };
-    /**
-     * \brief Alias for exclusion lists.
+     * A class to push around lists of types.
+     * \brief Exclusion type list.
      * \tparam Type List of types.
      */
     template<typename... Type>
-    struct exclude_t final : type_list<Type...> {
+    struct exclude_t 
+    {
         /*! \brief Default constructor. */
         explicit constexpr exclude_t() = default;
-    };
-    /**
-     * \brief Alias for inclusion lists.
-     * \tparam Type List of types.
-     */
-    template<typename... Type>
-    struct include_t final : type_list<Type...> {
-        /*! \brief Default constructor. */
-        explicit constexpr include_t() = default;
     };
 
     /**
