@@ -2,7 +2,7 @@
       ___  ___ ___ 
      / _ \/ __/ __|        Copyright (c) 2024 Nikita Martynau 
     |  __/ (__\__ \        https://opensource.org/license/mit 
-     \___|\___|___/ v1.4.2 https://github.com/nikitawew/nicecs
+     \___|\___|___/ v1.4.3 https://github.com/nikitawew/nicecs
 
 Thanks to this article: https://austinmorlan.com/posts/entity_component_system.
 Took a bit of inspiration from https://github.com/skypjack/entt.
@@ -613,12 +613,6 @@ namespace ecs
         std::vector<entity> view(exclude_t<Exclude...> toExclude = exclude_t{}) const;
 
         /**
-         * \brief Get the entities of the registry.
-         * \return Get a map of the sparse sets of all the valid entities of this registry with their signatures as its key.
-         */
-        std::unordered_map<signature, sparse_set<entity>> const &getEntityGroups() const;
-
-        /**
          * \brief Get a registry that merges two registries.
          * \param other The second registry.
          * \return Merged registry containing entities and components from both registries.
@@ -1161,10 +1155,6 @@ inline std::size_t ecs::registry::size() const
 {
     return m_entityManager.size();
 }
-inline std::unordered_map<ecs::signature, ecs::sparse_set<ecs::entity>> const &ecs::registry::getEntityGroups() const
-{
-    return m_entityManager.getEntityGroups();
-}
 inline ecs::registry ecs::registry::merged(ecs::registry const &other) const
 {
     ECS_PROFILE();
@@ -1177,7 +1167,7 @@ inline void ecs::registry::merge(ecs::registry const &other)
 {
     ECS_PROFILE();
 
-    for(auto const &[signature, entities] : other.getEntityGroups())
+    for(auto const &[signature, entities] : other.m_entityManager.getEntityGroups())
     {
         for(std::size_t id = 0; id < component_manager::getNextID(); ++id) 
         {
@@ -1217,7 +1207,7 @@ inline std::vector<ecs::entity> ecs::registry::view(signature required, signatur
     std::vector<ecs::entity> result;
     result.reserve(10);
 
-    for(auto const &[signature, group] : getEntityGroups())
+    for(auto const &[signature, group] : m_entityManager.getEntityGroups())
     {
         if((signature & required) == required && (signature & excluded).none())
             result.insert(result.end(), group.data().begin(), group.data().end());
