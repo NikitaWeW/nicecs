@@ -2,7 +2,7 @@
       ___  ___ ___ 
      / _ \/ __/ __|        Copyright (c) 2024 Nikita Martynau 
     |  __/ (__\__ \        https://opensource.org/license/mit 
-     \___|\___|___/ v1.4.3 https://github.com/nikitawew/nicecs
+     \___|\___|___/ v1.5.0 https://github.com/nikitawew/nicecs
 
 Thanks to this article: https://austinmorlan.com/posts/entity_component_system.
 Took a bit of inspiration from https://github.com/skypjack/entt.
@@ -608,9 +608,21 @@ namespace ecs
          * \tparam Exclude Types of elements used to filter the view.
          * \param toExclude The type list used to deduce Exclude variadic template argument.
          * \return A view on entities that are valid at the time of calling this member function and contain given included components and do not contain excluded ones at the time of calling this member function.
+         * view<>() returns all the entities in the registry.
          */
         template<typename... Include, typename... Exclude>
         std::vector<entity> view(exclude_t<Exclude...> toExclude = exclude_t{}) const;
+
+        /**
+         * \brief Returns a view for the given elements.
+         * \tparam May Types of elements that entity may have used to construct the view.
+         * \tparam Exclude Types of elements used to filter the view.
+         * \param toExclude The type list used to deduce Exclude variadic template argument.
+         * \return A view on entities that are valid at the time of calling this member function and contain given included components and do not contain excluded ones at the time of calling this member function.
+         * view_any_of<>() returns none of the entities in the registry.
+         */
+        template<typename... May, typename... Exclude>
+        std::vector<entity> view_any_of(exclude_t<Exclude...> toExclude = exclude_t{}) const;
 
         /**
          * \brief Get a registry that merges two registries.
@@ -643,24 +655,9 @@ namespace ecs
          */
         bool same(entity const &first, entity const &second);
     private:
-        /**
-         * \brief Create an entity.
-         * \param signature The signature describing the components the entity has.
-         * \return Unique valid entity id.
-         * Use ecs::make_signature or ecs::registry::getSignature to obtain a signature.
-         * All the components in the signature have to be registered.
-         * This function is now removed from the public api.
-         */
         entity create(signature signature);
-
-        /**
-         * \brief Returns a view for the given elements.
-         * \param required The signature describing the components of included elements used to construct the view.
-         * \param excluded The signature describing the components of elements used to filter the view.
-         * \return A view on entities that are valid at the time of calling this member function and contain given included components and do not contain excluded ones at the time of calling this member function.
-         * This function is now removed from the public api.
-         */
         std::vector<entity> view(signature required, signature excluded) const;
+        std::vector<entity> view_any_of(signature mayHave, signature excluded) const;
     };
 
     /**
@@ -1215,7 +1212,21 @@ inline std::vector<ecs::entity> ecs::registry::view(signature required, signatur
 
     return result;
 }
-template<typename... Include, typename... Exclude>
+inline std::vector<ecs::entity> ecs::registry::view_any_of(signature mayHave, signature excluded) const 
+{
+    ECS_PROFILE();
+    std::vector<ecs::entity> result;
+    result.reserve(10);
+
+    for(auto const &[signature, group] : m_entityManager.getEntityGroups())
+    {
+        if((signature & mayHave).any() && (signature & excluded).none())
+            result.insert(result.end(), group.data().begin(), group.data().end());
+    }
+
+    return result;
+}
+template <typename... Include, typename... Exclude>
 inline std::vector<ecs::entity> ecs::registry::view(exclude_t<Exclude...>) const
 {
     ECS_PROFILE();
@@ -1226,6 +1237,18 @@ inline std::vector<ecs::entity> ecs::registry::view(exclude_t<Exclude...>) const
     (excluded.set(component_manager::getComponentID<Exclude>()), ...);
 
     return view(required, excluded);
+}
+template <typename... May, typename... Exclude>
+inline std::vector<ecs::entity> ecs::registry::view_any_of(exclude_t<Exclude...> toExclude) const 
+{
+    ECS_PROFILE();
+
+    ecs::signature required;
+    ecs::signature excluded;
+    (required.set(component_manager::getComponentID<May>()), ...);
+    (excluded.set(component_manager::getComponentID<Exclude>()), ...);
+
+    return view_any_of(required, excluded);
 }
 
 template <typename... Components_t>
