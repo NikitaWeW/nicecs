@@ -1,5 +1,6 @@
 #include "catch2/catch_test_macros.hpp"
-#define ECS_SPARSE_SET_THROW ECS_THROW
+struct AssertException {};
+#define ECS_ASSERT(x, msg) if(!(x)) { throw AssertException{}; }
 #include "nicecs/ecs.hpp"
 #include "nicecs/ecs.hpp" // check if there are no odr issues
 #include "types.hpp"
@@ -19,7 +20,7 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]")
     s.emplace(5, "E");
     s.emplace(6, "F");
 
-    REQUIRE_THROWS_AS(s.emplace(1), std::invalid_argument);
+    REQUIRE_THROWS_AS(s.emplace(1), AssertException);
 
     s.erase(2);
     REQUIRE(s.contains(1));
@@ -59,9 +60,9 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]")
     REQUIRE(s.getDenseToSparse().capacity() == 100);
     REQUIRE(s.sparseData().capacity() == 100);
 
-    REQUIRE_THROWS_AS(s.get(0), std::out_of_range);
-    REQUIRE_THROWS_AS(s[0], std::out_of_range);
-    REQUIRE_THROWS_AS(s.erase(0), std::out_of_range);
+    REQUIRE_THROWS_AS(s.get(0), AssertException);
+    REQUIRE_THROWS_AS(s[0], AssertException);
+    REQUIRE_THROWS_AS(s.erase(0), AssertException);
 
     s.emplace(1, "Position");
     s.emplace(2, "Velocity");
