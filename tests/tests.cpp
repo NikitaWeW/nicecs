@@ -141,6 +141,8 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         ecs::entity e1 = reg.create<Position>();
         ecs::entity e2 = reg.create<Position, Velocity>({0.1f, 10}, {1, 0});
         ecs::entity e3 = 0;
+        Position copythis{4, 2};
+        ecs::entity e4 = reg.create(copythis);
 
         REQUIRE(reg.valid(e0));
         REQUIRE(reg.empty(e0));
@@ -166,6 +168,14 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         REQUIRE_FALSE(reg.valid(e3));
         REQUIRE_THROWS_AS(reg.has<Position>(e3), std::invalid_argument);
         REQUIRE_THROWS_AS(reg.get<Position>(e3), std::invalid_argument);
+
+        REQUIRE(reg.valid(e4));
+        REQUIRE_FALSE(reg.empty(e4));
+        REQUIRE(reg.size(e4) == 1);
+        REQUIRE(reg.has<Position>(e4));
+        REQUIRE_FALSE(reg.has<Velocity>(e4));
+        REQUIRE(reg.get<Position>(e4) == Position{4, 2});
+        REQUIRE(copythis == Position{4, 2});
 
         reg.destroy(e0);
     }

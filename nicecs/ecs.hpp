@@ -2,7 +2,7 @@
       ___  ___ ___ 
      / _ \/ __/ __|        Copyright (c) 2024 Nikita Martynau 
     |  __/ (__\__ \        https://opensource.org/license/mit 
-     \___|\___|___/ v1.5.1 https://github.com/nikitawew/nicecs
+     \___|\___|___/ v1.5.2 https://github.com/nikitawew/nicecs
 
 Thanks to this article: https://austinmorlan.com/posts/entity_component_system.
 Took a bit of inspiration from https://github.com/skypjack/entt.
@@ -1059,10 +1059,10 @@ inline ecs::entity ecs::registry::create(Components_t &&...components)
 {
     ECS_PROFILE();
     
-    (m_componentManager.registerComponent<Components_t>(), ...);
+    (m_componentManager.registerComponent<std::decay_t<Components_t>>(), ...);
     entity entity = m_entityManager.createEntity({});
 
-    (emplace<Components_t>(entity, std::forward<Components_t>(components)), ...);
+    (emplace<std::decay_t<Components_t>>(entity, std::forward<Components_t>(components)), ...);
 
     return entity;
 }
