@@ -143,6 +143,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         ecs::entity e3 = 0;
         Position copythis{4, 2};
         ecs::entity e4 = reg.create(copythis);
+        REQUIRE(reg.size() == 4);
 
         REQUIRE(reg.valid(e0));
         REQUIRE(reg.empty(e0));
@@ -178,6 +179,15 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         REQUIRE(copythis == Position{4, 2});
 
         reg.destroy(e0);
+        REQUIRE_FALSE(reg.valid(e0));
+        REQUIRE(reg.size() == 3);
+        
+        reg.clear();
+        REQUIRE(reg.size() == 0);
+        REQUIRE_FALSE(reg.valid(e0));
+        REQUIRE_FALSE(reg.valid(e1));
+        REQUIRE_FALSE(reg.valid(e2));
+        REQUIRE_FALSE(reg.valid(e4));
     }
 
     SECTION("component manipulation")
@@ -294,7 +304,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         {
             e0_found += reg.same(e, e0) && reg.get<Position>(e) == Position{1, 0};
             e1_found += reg.same(e, e1) && reg.get<Position>(e) == Position{0, 1} && reg.get<Velocity>(e) == Velocity{1, 1};
-            e2_found += reg.same(e, e2, reg2) && reg.get<Tag>(e) == Tag{"Hello, World!"};
+            e2_found += reg.same(e, e2, reg2) && reg.get<Tag>(e).s == "Hello, World!";
             e3_found += reg.same(e, e3, reg2) && reg.get<Position>(e) == Position{1, 1} && reg.get<Velocity>(e) == Velocity{0, 0};
         }
 

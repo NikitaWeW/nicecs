@@ -15,7 +15,6 @@ struct Velocity {
 
 struct Tag {
     std::string s;
-    bool operator==(Tag const& o) const { return s == o.s; }
 };
 
 struct Health { 

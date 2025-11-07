@@ -572,6 +572,12 @@ namespace ecs
         bool empty(entity const &entity) const;
 
         /**
+         * \brief Clear the registry.
+         * Destroys all the entities in the registry.
+         */
+        void clear();
+
+        /**
          * \brief Get the number of components in an entity.
          * \throws std::invalid_argument if the entity is not a valid identifier.
          */
@@ -1110,11 +1116,16 @@ inline bool ecs::registry::empty(entity const &entity) const
         ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
     return m_entityManager.getSignature(entity).none();
 }
-inline std::size_t ecs::registry::size(entity const &entity) const
+inline void ecs::registry::clear() 
 {
-    if(!valid(entity)) 
-        ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
-    return m_entityManager.getSignature(entity).count();
+    ECS_PROFILE();
+    for(entity const &e : view<>())
+        destroy(e);
+}
+inline std::size_t ecs::registry::size(entity const &entity) const {
+  if (!valid(entity))
+    ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
+  return m_entityManager.getSignature(entity).count();
 }
 inline std::size_t ecs::registry::size() const
 {
