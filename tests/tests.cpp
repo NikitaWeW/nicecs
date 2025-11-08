@@ -209,16 +209,6 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         REQUIRE_THROWS_AS(reg.get<Position>(e), std::out_of_range);
     }
 
-    SECTION("signature manipulation")
-    {
-        auto sig0 = ecs::make_signature<>();
-        REQUIRE(sig0.none());
-        auto sig1 = ecs::make_signature<Position>();
-        REQUIRE(sig1.count() == 1);
-        auto sig2 = ecs::make_signature<Position, Velocity>();
-        REQUIRE(sig2.count() == 2);
-    }
-
     SECTION("views")
     {
         auto e0 = reg.create();
@@ -292,23 +282,37 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
 
         auto e2 = reg2.create(Tag{"Hello, World!"});
         auto e3 = reg2.create(Position{1, 1}, Velocity{0, 0});
+        auto e4 = reg2.create(Position{1, 2});
+        auto e5 = reg2.create(Position{4, 1}, Health{99});
 
         reg.merge(reg2);
 
-        REQUIRE(reg.size() == 4);
-        REQUIRE(reg.view<Position>().size() == 3);
+        REQUIRE(reg.size() == 6);
+        REQUIRE(reg.view<Position>().size() == 5);
 
-        unsigned e0_found = 0, e1_found = 0, e2_found = 0, e3_found = 0;
-        auto entities = reg.view<>();
-        for(auto e : entities)
+        unsigned e0_found = 0, e1_found = 0, e2_found = 0, e3_found = 0, e4_found = 0, e5_found = 0;
+        for(auto e : reg.view<>())
         {
             e0_found += reg.same(e, e0) && reg.get<Position>(e) == Position{1, 0};
             e1_found += reg.same(e, e1) && reg.get<Position>(e) == Position{0, 1} && reg.get<Velocity>(e) == Velocity{1, 1};
             e2_found += reg.same(e, e2, reg2) && reg.get<Tag>(e).s == "Hello, World!";
             e3_found += reg.same(e, e3, reg2) && reg.get<Position>(e) == Position{1, 1} && reg.get<Velocity>(e) == Velocity{0, 0};
+            e4_found += reg.same(e, e4, reg2) && reg.get<Position>(e) == Position{1, 2};
+            e5_found += reg.same(e, e5, reg2) && reg.get<Position>(e) == Position{4, 1} && reg.get<Health>(e).hp == 99;
         }
 
-        REQUIRE((e0_found == 1 && e1_found == 1 && e2_found == 1 && e3_found == 1));
+        REQUIRE(e0_found == 1);
+        REQUIRE(e1_found == 1);
+        REQUIRE(e2_found == 1);
+        REQUIRE(e3_found == 1);
+        REQUIRE(e4_found == 1);
+        REQUIRE(e5_found == 1);
+
+        reg.clear();
+
+        reg.merge_entities(reg2.view<Position>(ecs::exclude_t<Velocity>{}), reg2);
+
+        REQUIRE(reg.size() == 2);
     }
 
     SECTION("registry component copy semantics")

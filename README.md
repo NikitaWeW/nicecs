@@ -1,4 +1,4 @@
-Actually, its just an EC (entity component) as the library provides no systems api, because it is really easy to implement them and each project needs a slightly different approach. Nonetheless, i used the ecs term as it is more common.
+Actually, its just an EC (entity component) as the library provides no systems api. Nonetheless, i use the ecs term as it is more common.
 
 ## Features
 
@@ -7,6 +7,7 @@ Actually, its just an EC (entity component) as the library provides no systems a
 - Simple API.
 - Sparse set storage (ecs::sparse_set available for use).
 - Type safe component manipulation.
+- Thread safe ([kinda](#thread-safety)).
 
 ## Integration
 
@@ -76,27 +77,16 @@ build/tests/tests
 cd build/tests
 ctest .
 ```
-## Latest Benchmarks (rough)
+
+## Thread safety
+You can redefine ECS_SYNCHRONIZE(...) to disable synchronization.
+```c
+#define ECS_SYNCHRONIZE(...)
 ```
--------------------------------------------------------------------------------
-ecs::registry benchmarks
--------------------------------------------------------------------------------
-benchmark name                       samples       iterations    est run time
-                                     mean          low mean      high mean
-                                     std dev       low std dev   high std dev
--------------------------------------------------------------------------------
-view                                           100           178     1.3172 ms 
-                                        78.0993 ns    76.0046 ns    85.6976 ns 
-                                        18.1363 ns    4.97324 ns    41.7022 ns 
-                                                                               
-merged                                         100             1    88.5168 ms 
-                                        880.299 us    874.434 us    888.826 us 
-                                        35.8386 us    27.2969 us    45.8779 us 
-                                                                               
-create and emplace                             100             3     1.8255 ms 
-                                        9.43451 us    9.25802 us    9.81493 us 
-                                        1.26295 us    725.996 ns     2.4677 us 
-```
+
+`ecs::registry` is synchronized, however beware of getting references or pointers to components, 
+because `ecs::sparse_set` maintains dense storage by moving components, which invalidates pointers / references. 
+Also the components might be modified by another thread.
 
 ## Older development
 
@@ -104,7 +94,7 @@ create and emplace                             100             3     1.8255 ms
 - https://github.com/NikitaWeW/breakout/tree/locked-ecs
 - https://github.com/NikitaWeW/ecs (this repo)
 
-## Further Reading
+---
 
 - Austin Morlan’s ECS design: https://austinmorlan.com/posts/entity_component_system  
 - EnTT library: https://github.com/skypjack/entt
