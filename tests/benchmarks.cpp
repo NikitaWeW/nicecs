@@ -85,12 +85,36 @@ TEST_CASE("ecs::registry benchmarks", "[benchmark][ecs][ecs::registry]")
         };
     }
     {
+        auto const a = make_registry();
+        auto b = make_registry();
+        BENCHMARK("clear and merge")
+        {
+            b.clear();
+            b.merge(a);
+        };
+    }
+    {
         ecs::registry registry;
         BENCHMARK("create and emplace")
         {
             auto e = registry.create<>();
             registry.emplace<Position>(e, 1.0f, 2.0f);
             return e;
+        };
+    }
+    {
+        ecs::registry registry;
+        BENCHMARK("create and destroy")
+        {
+            auto e = registry.create<Position>();
+            registry.destroy(e);
+            return e;
+        };
+    }
+    {
+        BENCHMARK("create registry")
+        {
+            return ecs::registry{};
         };
     }
 }

@@ -19,7 +19,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #pragma once
 #include <cstdint>
 #include <bitset>
-#include <queue>
 #include <memory>
 #include <vector>
 #include <type_traits>
@@ -28,6 +27,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <unordered_map>
 #include <algorithm>
 #include <shared_mutex>
+#include <numeric>
 
 /*! \cond Doxygen_Suppress */
 // Config section 
@@ -95,7 +95,7 @@ namespace ecs
         std::size_t getDenseIndex(sparse_type const &sparse) const;
     public:
         /// \param capacity The optional capacity to reserve.
-        sparse_set(std::size_t capacity = 50);
+        sparse_set(std::size_t capacity = 10);
         ~sparse_set() = default;
         sparse_set(sparse_set const &other);
         sparse_set(sparse_set &&other) noexcept;
@@ -265,14 +265,15 @@ namespace ecs
     class entity_manager
     {
     private:
-        std::queue<entity> m_availableEntityIDs;
+        std::vector<entity> m_availableEntityIDs;
         std::unordered_map<signature, sparse_set<entity>> m_entityGroups;
         std::uint32_t m_livingEntitiesCount = 0;
         sparse_set<signature> m_signatures;
         entity m_nextID = 1;
     public:
-        explicit entity_manager(entity numEntities = 100000);
+        explicit entity_manager();
         ~entity_manager() = default;
+
         /// \brief Creates entity with an optional signature.
         /// \param signature A signature representing components the entity has (optional).
         /// \return Unique entity id.
@@ -548,17 +549,19 @@ namespace ecs
 template <typename dense_t>
 inline void ecs::sparse_set<dense_t>::setDenseIndex(sparse_type const &sparse, std::size_t index)
 {
+    ECS_PROFILE;
     // Check sparse < 0 in case sparse_type becomes a template parameter again.
     // if(sparse < 0) 
     //     return null;
     if(sparse >= m_sparse.size())
-        m_sparse.resize(sparse + 1, null);
+        m_sparse.resize(sparse + 10, null);
 
     m_sparse[sparse] = index;
 }
 template <typename dense_t>
 inline std::size_t ecs::sparse_set<dense_t>::getDenseIndex(sparse_type const &sparse) const
 {
+    ECS_PROFILE;
     // Check sparse < 0 in case sparse_type becomes a template parameter again.
     // if(sparse < 0) 
     //     return null;
@@ -570,11 +573,13 @@ inline std::size_t ecs::sparse_set<dense_t>::getDenseIndex(sparse_type const &sp
 template <typename dense_t>
 inline ecs::sparse_set<dense_t>::sparse_set(std::size_t capacity)
 {
+    ECS_PROFILE;
     reserve(capacity);
 }
 template <typename dense_t>
 inline ecs::sparse_set<dense_t>::sparse_set(sparse_set const &other)
 {
+    ECS_PROFILE;
     *this = other;
 }
 template <typename dense_t>
@@ -594,7 +599,6 @@ inline ecs::sparse_set<dense_t> &ecs::sparse_set<dense_t>::operator=(sparse_set 
 template <typename dense_t>
 inline ecs::sparse_set<dense_t> &ecs::sparse_set<dense_t>::operator=(sparse_set &&other) noexcept
 {
-    ECS_PROFILE;
     swap(other);
     return *this;
 }
@@ -602,6 +606,7 @@ template <typename dense_t>
 template <class... Args>
 inline void ecs::sparse_set<dense_t>::emplace(sparse_type const &sparse, Args &&...args)
 {
+    ECS_PROFILE;
     ECS_ASSERT(getDenseIndex(sparse) == null, "element added to the same sparse index more than once!");
 
     if constexpr(std::is_aggregate_v<dense_type> && (sizeof...(Args) != 0u || !std::is_default_constructible_v<dense_type>)) 
@@ -616,6 +621,7 @@ inline void ecs::sparse_set<dense_t>::emplace(sparse_type const &sparse, Args &&
 template <typename dense_t>
 inline void ecs::sparse_set<dense_t>::erase(sparse_type const &sparse)
 {
+    ECS_PROFILE;
     ECS_ASSERT(getDenseIndex(sparse) != null, "removing a non-existing element from a sparse index!");
 
     std::size_t removedDenseIndex = getDenseIndex(sparse);
@@ -745,24 +751,25 @@ inline bool ecs::sparse_set<dense_t>::empty() const
     return m_dense.empty();
 }
 
-inline ecs::entity_manager::entity_manager(ecs::entity numEntities)
+inline ecs::entity_manager::entity_manager()
 {
     ECS_PROFILE;
-    for(; m_nextID <= numEntities; ++m_nextID) {
-        m_availableEntityIDs.push(m_nextID);
-    }
-    m_signatures.reserve(numEntities);
+    m_availableEntityIDs.reserve(1000);
+    m_signatures.reserve(1000);
 }
 inline ecs::entity ecs::entity_manager::createEntity(signature signature)
 {
     ECS_PROFILE;
-    entity entity = m_availableEntityIDs.front();
-    m_availableEntityIDs.pop();
+    entity entity = 0;
+    if(m_availableEntityIDs.empty())
+    {
+        entity = m_nextID++;
+    } else {
+        entity = m_availableEntityIDs.back();
+        m_availableEntityIDs.pop_back();
+    }
     ++m_livingEntitiesCount;
     m_entityGroups[signature].emplace(entity, entity);
-
-    if(m_availableEntityIDs.empty())
-        m_availableEntityIDs.push(m_nextID++);
 
     m_signatures.emplace(entity, signature);
 
@@ -773,7 +780,7 @@ inline void ecs::entity_manager::destroyEntity(entity const &entity)
     ECS_PROFILE;
     ECS_ASSERT(valid(entity), "invalid entity identifier!");
     --m_livingEntitiesCount;
-    m_availableEntityIDs.push(entity);
+    m_availableEntityIDs.push_back(entity);
 
     auto &group = m_entityGroups[getSignature(entity)];
     group.erase(entity);
@@ -966,6 +973,7 @@ inline ecs::entity ecs::registry::create()
 template <typename... Components_t>
 inline ecs::entity ecs::registry::create(Components_t &&...components)
 {
+    ECS_PROFILE;
     
     (m_componentManager.registerComponent<std::decay_t<Components_t>>(), ...);
     entity entity = m_entityManager.createEntity({});
@@ -1073,7 +1081,31 @@ inline ecs::registry ecs::registry::merged(ecs::registry const &other) const
 inline void ecs::registry::merge(ecs::registry const &other)
 {
     ECS_PROFILE;
-    merge(other.view<>(), other);
+    for(auto const &[signature, group] : other.m_entityManager.getEntityGroups())
+    {
+        for(std::size_t id = 0; id < component_manager::getNextID(); ++id) 
+        {
+            if(!signature.test(id)) 
+                continue;
+            if(!m_componentManager.getComponentArrays().contains(id))
+                m_componentManager.getComponentArrays().emplace(id, other.m_componentManager.getComponentArrays().get(id)->cloneEmpty());
+        }
+        for(auto const &other_entity : group.data())
+        {
+            entity entity = m_entityManager.createEntity(signature);
+            for(std::size_t id = 0; id < component_manager::getNextID(); ++id)
+            {
+                if(signature.test(id))
+                {
+                    ECS_ASSERT(m_componentManager.getComponentArrays().contains(id), "unregistered component (bug?)");
+                    m_componentManager.getComponentArrays().get(id)->addEntity(entity);
+                }
+                else continue;
+
+                m_componentManager.getComponentArrays().get(id)->copyEntityFrom(other.m_componentManager.getComponentArrays().get(id).get(), entity, other_entity);
+            }
+        }
+    }
 }
 inline void ecs::registry::merge(std::vector<entity> const &entities, registry const &other)
 {
