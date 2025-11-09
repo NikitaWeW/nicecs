@@ -52,51 +52,39 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #define ECS_MAX_COMPONENTS 1024
 #endif
 
-#ifndef ECS_SYNCHRONIZE
-#define ECS_SYNCHRONIZE true
-#endif
-
 /*! \endcond */
-
-// ============
-// Declaration 
-// ============
 
 namespace ecs
 {
-    /** \brief Entity ID. Entity 0 is invalid. */
+    /// \brief Entity ID. Entity 0 is invalid.
     using entity = std::uint32_t;
-    /** \brief Component ID. Used with signature. */
+    /// \brief Component ID. Used with signature.
     using component_id = std::uint32_t;
 
-    /** \brief Controls the maximum number of components allowed to be registered. */
+    /// \brief Controls the maximum number of components allowed to be registered.
     constexpr component_id MAX_COMPONENTS = ECS_MAX_COMPONENTS;
 
-    /**
-     * \brief Used to track which components entity has. 
-     * As an example, if Transform has type 0, RigidBody has type 1, and Gravity has type 2, an entity that “has” those three components would have a signature of 0b111 (bits 0, 1, and 2 are set).
-     * Important: signatures are uniform across registries.
-     * TODO: If MAX_COMPONENTS becomes an issue, use std::vector<bool>
-     */
+    /// \brief Used to track which components entity has. 
+    /// As an example, if Transform has type 0, RigidBody has type 1, and Gravity has type 2, an entity that “has” those three components would have a signature of 0b111 (bits 0, 1, and 2 are set).
+    /// Important: signatures are uniform across registries.
+    /// TODO: If MAX_COMPONENTS becomes an issue, use std::vector<bool>
     using signature = std::bitset<MAX_COMPONENTS>;
 
-    /**
-     * \brief A sparse set implementation.
-     * \tparam dense_t The type of densely stored data.
-     */
+    /// \brief A sparse set implementation.
+    /// \tparam dense_t The type of densely stored data.
     template<typename dense_t>
     class sparse_set
     {
     public:
-        /** \brief The type of the sparse index. */
+        /// \brief The type of the sparse index.
         using sparse_type = std::size_t;
-        /** \brief The type of densely stored data. */
+        /// \brief The type of densely stored data.
         using dense_type = dense_t;
 
         class iterator;
         class const_iterator;
 
-        /** \brief The sparse pointer that represents the empty index. */
+        /// \brief The sparse pointer that represents the empty index.
         static constexpr sparse_type null = std::numeric_limits<std::size_t>::max();
     private:
         std::vector<dense_type> m_dense;
@@ -106,103 +94,82 @@ namespace ecs
         void setDenseIndex(sparse_type const &sparse, std::size_t index);
         std::size_t getDenseIndex(sparse_type const &sparse) const;
     public:
-        /** 
-         * \param capacity The optional capacity to reserve.
-         */
-        sparse_set(std::size_t capacity = 1000);
+        /// \param capacity The optional capacity to reserve.
+        sparse_set(std::size_t capacity = 50);
         ~sparse_set() = default;
         sparse_set(sparse_set const &other);
         sparse_set(sparse_set &&other) noexcept;
         sparse_set &operator=(sparse_set const &other);
         sparse_set &operator=(sparse_set &&other) noexcept;
 
-        /**
-         * \brief The container is extended by inserting a new element at sparse position. This new element is constructed in place using args as the arguments for its construction.
-         * \param sparse A sparse index.
-         * \param args Arguments forwarded to construct the new element.
-         * \throws std::invalid_argument If the sparse index already contains an element.
-         */
+        /// \brief The container is extended by inserting a new element at sparse position. This new element is constructed in place using args as the arguments for its construction.
+        /// \param sparse A sparse index.
+        /// \param args Arguments forwarded to construct the new element.
+        /// \throws std::invalid_argument If the sparse index already contains an element.
         template <class... Args>
         void emplace(sparse_type const &sparse, Args&&... args);
 
-        /**
-         * \brief Removes an element from a sparse index.
-         * \param sparse A sparse index.
-         * \throws std::out_of_range If a sparse index doesent contain the element.
-         */
+        /// \brief Removes an element from a sparse index.
+        /// \param sparse A sparse index.
+        /// \throws std::out_of_range If a sparse index doesent contain the element.
         void erase(sparse_type const &sparse);
 
-        /**
-         * \brief Gets an element at a sparse index.
-         * \param sparse A sparse index.
-         * \return An element lvalue reference.
-         * \throws std::out_of_range If a sparse index doesent contain the element.
-         */
+        /// \brief Gets an element at a sparse index.
+        /// \param sparse A sparse index.
+        /// \return An element lvalue reference.
+        /// \throws std::out_of_range If a sparse index doesent contain the element.
         dense_type const &get(sparse_type const &sparse) const;
-        /** \copydoc get */
+
+        /// \copydoc get
         dense_type &get(sparse_type const &sparse);
 
-        /** \copydoc get */
+        /// \copydoc get
         dense_type &operator[](sparse_type const &sparse);
-        /** \copydoc get */
+
+        /// \copydoc get
         dense_type const &operator[](sparse_type const &sparse) const;
-        /**
-         * \brief Gets the dense list.
-         * \return A std::vector with the elements.
-         */
+
+        /// \brief Gets the dense list.
+        /// \return A std::vector with the elements.
         std::vector<dense_type> const &data() const;
 
-        /**
-         * \brief Get dense to sparse mapping.
-         * \return 1 to 1 with the dense data vector with the dense to sparse mapping.
-         */
+        /// \brief Get dense to sparse mapping.
+        /// \return 1 to 1 with the dense data vector with the dense to sparse mapping.
         std::vector<sparse_type> const &getDenseToSparse() const;
 
-        /**
-         * \brief Get the sparse pages.
-         * \return The paginated vector with the sparse indices. The ones that are equal to null are null pointers.
-         */
+        /// \brief Get the sparse pages.
+        /// \return The paginated vector with the sparse indices. The ones that are equal to null are null pointers.
         std::vector<std::size_t> const &sparseData() const;
 
-        /**
-         * \brief Check whether the sparse set contains an element at a given sparse index.
-         * \param sparse A sparse index.
-         * \return True if found, false otherwise.
-         */
+        /// \brief Check whether the sparse set contains an element at a given sparse index.
+        /// \param sparse A sparse index.
+        /// \return True if found, false otherwise.
         bool contains(sparse_type const &sparse) const;
 
-        /**
-         * \brief Increase the capacity of the dense list.
-         */
+        /// \brief Increase the capacity of the dense list.
         void reserve(std::size_t newCapacity);
 
-        /**
-         * \brief Sets the capacity to the size.
-         */
+        /// \brief Sets the capacity to the size.
         void shrink_to_fit();
 
-        /**
-         * \return True if the container is empty, false otherwise.
-         */
+        /// \return True if the container is empty, false otherwise.
         bool empty() const;
 
-        /**
-         * \brief Clear the sparse set.
-         */
+        /// \brief Clear the sparse set.
         void clear();
 
-        /** \brief The cbegin of the dense list. */
+        /// \brief The cbegin of the dense list.
         const_iterator begin() const;
-        /** \brief The cend of the dense list. */
+        /// \brief The cend of the dense list.
         const_iterator end() const;
-        /** \brief The begin of the dense list. */
+        /// \brief The begin of the dense list.
         iterator begin();
-        /** \brief The end of the dense list. */
+        /// \brief The end of the dense list.
         iterator end();
 
         void swap(sparse_set<dense_type> &&other);
     public:
-        /** \brief The [sparse; dense] pair iterator */
+        /// \brief The [sparse; dense] pair iterator.
         class iterator
         {
             sparse_set *m_owner;
@@ -246,6 +213,8 @@ namespace ecs
 
             inline reference operator[](difference_type n) const { return *(*this + n); }
         };
+        
+        /// \copydoc iterator
         class const_iterator
         {
             sparse_set const *m_owner;
@@ -291,10 +260,8 @@ namespace ecs
         };
     };
 
-    /**
-     * \brief Manages entities (create, destroy) and their signatures (set, get).
-     * Any entity supplied to the manager must be created by the same manager object.
-     */
+    /// \brief Manages entities (create, destroy) and their signatures (set, get).
+    /// Any entity supplied to the manager must be created by the same manager object.
     class entity_manager
     {
     private:
@@ -306,134 +273,101 @@ namespace ecs
     public:
         explicit entity_manager(entity numEntities = 100000);
         ~entity_manager() = default;
-        /**
-         * \brief Creates entity with an optional signature.
-         * \param signature A signature representing components the entity has (optional).
-         * \return Unique entity id.
-         */
+        /// \brief Creates entity with an optional signature.
+        /// \param signature A signature representing components the entity has (optional).
+        /// \return Unique entity id.
         entity createEntity(signature signature = {});
-        /**
-         * \brief Destroys entity.
-         * \param entity A valid entity identifier.
-         */
+
+        /// \brief Destroys entity.
+        /// \param entity A valid entity identifier.
         void destroyEntity(entity const &entity);
-        /**
-         * \brief Sets the signature of the entity.
-         * \param entity A valid entity identifier.
-         * \param signature A new signature,
-         */
+        
+        /// \brief Sets the signature of the entity.
+        /// \param entity A valid entity identifier.
+        /// \param signature A new signature,
         void setSignature(entity const &entity, signature signature);
 
-        /**
-         * \brief Gets the signature of a valid entity.
-         * \param entity A valid entity identifier.
-         * \return A const reference to a signature, describing the components an entity has.
-         */
+        /// \brief Gets the signature of a valid entity.
+        /// \param entity A valid entity identifier.
+        /// \return A const reference to a signature, describing the components an entity has.
         signature const &getSignature(entity const &entity) const;
 
-        /**
-         * \brief Get entities of this manager.
-         * \return Get a map of the sparse sets of all the valid entities of this registry with their signatures as its key.
-         */
+        /// \brief Get entities of this manager.
+        /// \return Get a map of the sparse sets of all the valid entities of this registry with their signatures as its key.
         std::unordered_map<signature, sparse_set<entity>> const &getEntityGroups() const;
 
-        /**
-         * \brief Checks if an identifier refers to a valid entity.
-         * \param entity An identifier, either valid or not.
-         * \return True if the identifier is valid, false otherwise.
-         */
+        /// \brief Checks if an identifier refers to a valid entity.
+        /// \param entity An identifier, either valid or not.
+        /// \return True if the identifier is valid, false otherwise.
         bool valid(entity const &entity) const;
 
-        /**
-         * \brief Get the number of entities alive in a manager.
-         */
+        /// \brief Get the number of entities alive in a manager.
         std::size_t size() const;
     };
 
-    /**
-     * \brief Every instanced component_array is derived from this polymorphic class.
-     */
+    /// \brief Every instanced component_array is derived from this polymorphic class.
     class icomponent_array 
     {
     public:
         virtual ~icomponent_array() = default;
 
-        /**
-         * \brief Notify the array that the entity is destroyed.
-         * \param entity A destroyed entity identifier.
-         */
+        /// \brief Notify the array that the entity is destroyed.
+        /// \param entity A destroyed entity identifier.
         virtual void onEntityDestroyed(entity const &entity) = 0;
 
-        /**
-         * \brief Copy the component of an entity from another component array.
-         * \param other The other component array.
-         * \param to The entity to copy to.
-         * \param from The entity to copy from.
-         */
+        /// \brief Copy the component of an entity from another component array.
+        /// \param other The other component array.
+        /// \param to The entity to copy to.
+        /// \param from The entity to copy from.
         virtual void copyEntityFrom(icomponent_array const *other, entity const &to, entity const &from) = 0;
 
-        /**
-         * \brief Add an entity to the component array.
-         * \param entity A valid entity identifier.
-         */
+        /// \brief Add an entity to the component array.
+        /// \param entity A valid entity identifier.
         virtual void addEntity(entity const &entity) = 0;
 
-        /**
-         * \brief Create an empty copy of the component array.
-         */
+        /// \brief Create an empty copy of the component array.
         virtual std::unique_ptr<icomponent_array> cloneEmpty() const = 0;
 
-        /**
-         * \brief Create a copy of the component array.
-         */
+        /// \brief Create a copy of the component array.
         virtual std::unique_ptr<icomponent_array> clone() const = 0;
     };
 
-    /**
-     * \brief Stores components of entities of a specific type as a sparse set.
-     * @tparam component_t The type of stored components.
-     */
+    /// \brief Stores components of entities of a specific type as a sparse set.
+    /// @tparam component_t The type of stored components.
     template <typename component_t>
     class component_array : public icomponent_array, public sparse_set<component_t>
     {
     public:
-        /** \copydoc ecs::icomponent_array::onEntityDestroyed */
+        /// \copydoc ecs::icomponent_array::onEntityDestroyed
         void onEntityDestroyed(entity const &entity) override;
         
-        
-        /** \copydoc ecs::icomponent_array::copyEntityFrom */
+        /// \copydoc ecs::icomponent_array::copyEntityFrom
         void copyEntityFrom(icomponent_array const *other, entity const &to, entity const &from) override;
 
-        /** \copydoc ecs::icomponent_array::addEntity */
+        /// \copydoc ecs::icomponent_array::addEntity
         void addEntity(entity const &entity) override;
 
-        /** \copydoc ecs::icomponent_array::cloneEmpty */
+        /// \copydoc ecs::icomponent_array::cloneEmpty
         std::unique_ptr<icomponent_array> cloneEmpty() const override;
 
-        /** \copydoc ecs::icomponent_array::clone */
+        /// \copydoc ecs::icomponent_array::clone
         std::unique_ptr<icomponent_array> clone() const override;
     };
 
-    /**
-     * \brief Manages components and their arrays. All components are destroyed automatically.
-     */
+    /// \brief Manages components and their arrays. All components are destroyed automatically.
     class component_manager
     {
     private:
         sparse_set<std::unique_ptr<icomponent_array>> m_componentArrays{};
         inline static component_id m_nextID = 0;
     public:
-        /**
-         * \brief Get unique component ID used to index the signature bitset.
-         * \tparam component_t The component type.
-         * The id is the same between the managers.
-         */
+        /// \brief Get unique component ID used to index the signature bitset.
+        /// \tparam component_t The component type.
+        /// The id is the same between the managers.
         template <typename component_t> 
         static component_id getComponentID();
 
-        /**
-         * \brief Get the next component id.
-         */
+        /// \brief Get the next component id.
         static std::size_t getNextID();
     public:
         component_manager() = default;
@@ -441,64 +375,45 @@ namespace ecs
         component_manager &operator=(component_manager const &other);
         ~component_manager() = default;
 
-        /**
-         * \brief Registers component.
-         * \tparam component_t The component type.
-         * This should be called for every component used. Multiple calls for the same component_t will do nothing.
-         */
+        /// \brief Registers component.
+        /// \tparam component_t The component type.
+        /// This should be called for every component used. Multiple calls for the same component_t will do nothing.
         template <typename component_t> 
         void registerComponent();
 
-        /**
-         * \brief Notify component arrays that the entity is destroyed.
-         * \param entity A deleted entity identifier.
-         */
+        /// \brief Notify component arrays that the entity is destroyed.
+        /// \param entity A deleted entity identifier.
         void entityDestroyed(entity const &entity) const;
 
-        /**
-         * \brief Get the component array associated with the given component type.
-         * \tparam component_t The component type.
-         */
+        /// \brief Get the component array associated with the given component type.
+        /// \tparam component_t The component type.
         template <typename component_t> 
         component_array<component_t> *getComponentArray();
-        /** \copydoc getComponentArray */
+        /// \copydoc getComponentArray
         template <typename component_t>
         component_array<component_t> const *getComponentArray() const;
 
-        /**
-         * \brief Get the component arrays.
-         */
         sparse_set<std::unique_ptr<icomponent_array>> &getComponentArrays();
-        /** \copydoc getComponentArrays */
         sparse_set<std::unique_ptr<icomponent_array>> const &getComponentArrays() const;
     };
 
-    /**
-     * A class to push around lists of types.
-     * \brief Exclusion type list.
-     * \tparam Type List of types.
-     */
+    /// A class to push around lists of types.
+    /// \brief Exclusion type list.
+    /// \tparam Type List of types.
     template<typename... Type>
     struct exclude_t 
     {
-        /*! \brief Default constructor. */
         explicit constexpr exclude_t() = default;
     };
 
-    /**
-     * \brief An ECS interface.
-     * Contains entities and their components.
-     */
+    /// \brief An ECS interface.
+    /// Contains entities and their components.
     class registry
     {
     private:
         entity_manager m_entityManager;
         // ugly fix for lazy component registration.
         mutable component_manager m_componentManager;
-
-#if ECS_SYNCHRONIZE
-        mutable std::shared_mutex m_mutex;
-#endif
     public:
         registry() = default;
         ~registry() = default;
@@ -508,174 +423,131 @@ namespace ecs
         registry &operator=(registry &&other) noexcept;
         void swap(registry &other) noexcept; 
 
-        /** \copydoc entity_manager::valid */
+        /// \copydoc entity_manager::valid
         bool valid(entity const &entity) const;
 
-        /**
-         * \brief Checks if a valid entity has a component.
-         * \param entity A valid entity identifier.
-         * \tparam component_t The component type.
-         * \throws std::invalid_argument if the entity is not a valid identifier.
-         * \return True if the entity has the component, false otherwise.
-         */
+        /// \brief Checks if a valid entity has a component.
+        /// \param entity A valid entity identifier.
+        /// \tparam component_t The component type.
+        /// \throws std::invalid_argument if the entity is not a valid identifier.
+        /// \return True if the entity has the component, false otherwise.
         template <typename component_t> bool has(entity const &entity) const;
 
-        /**
-         * \brief Gets a component from a a valid entity.
-         * \param entity A valid entity identifier.
-         * \tparam component_t The component type.
-         * \throws std::invalid_argument if the entity is not a valid identifier.
-         * \throws std::out_of_range if the component is not added.
-         * \return The component lvalue reference.
-         */
+        /// \brief Gets a component from a a valid entity.
+        /// \param entity A valid entity identifier.
+        /// \tparam component_t The component type.
+        /// \throws std::invalid_argument if the entity is not a valid identifier.
+        /// \throws std::out_of_range if the component is not added.
+        /// \return The component lvalue reference.
         template <typename component_t> 
         component_t &get(entity const &entity);
-        /** \copydoc get */
+        /// \copydoc get
         template <typename component_t> 
         component_t const &get(entity const &entity) const;
 
-        /**
-         * \brief Removes a component from a valid entity.
-         * \param entity A valid entity identifier.
-         * \throws std::invalid_argument if the entity is not a valid identifier.
-         * \throws std::out_of_range if the component is not added.
-         * \tparam component_t The component type.
-         */
+        /// \brief Removes a component from a valid entity.
+        /// \param entity A valid entity identifier.
+        /// \throws std::invalid_argument if the entity is not a valid identifier.
+        /// \throws std::out_of_range if the component is not added.
+        /// \tparam component_t The component type.
         template <typename component_t> 
         void remove(entity const &entity);
         
-        /**
-         * \copydoc component_manager::emplace
-         * \throws std::invalid_argument if the entity is not a valid identifier.
-         * \throws std::invalid_argument if the component is already added.
-         */
+        /// \copydoc component_manager::emplace
+        /// \throws std::invalid_argument if the entity is not a valid identifier.
+        /// \throws std::invalid_argument if the component is already added.
         template <typename component_t, class... Args>
         void emplace(entity const &entity, Args&&... args);
 
-        /**
-         * \brief Create an entity.
-         * \tparam Components_t Components (optional).
-         * \return Unique valid entity id.
-         * \throws std::invalid_argument If the same component is added more than once.
-         */
+        /// \brief Create an entity.
+        /// \tparam Components_t Components (optional).
+        /// \return Unique valid entity id.
+        /// \throws std::invalid_argument If the same component is added more than once.
         template <typename... Components_t> 
         entity create();
 
-        /**
-         * \brief Create an entity.
-         * \tparam Components_t Components (optional).
-         * \param components The components to move in.
-         * \return Unique valid entity id.
-         * \throws std::invalid_argument If the same component is added more than once.
-         */
+        /// \brief Create an entity.
+        /// \tparam Components_t Components (optional).
+        /// \param components The components to move in.
+        /// \return Unique valid entity id.
+        /// \throws std::invalid_argument If the same component is added more than once.
         template <typename... Components_t> 
         entity create(Components_t&&... components);
 
-        /**
-         * \brief Destroys an entity and its components.
-         * \param entity A valid entity identifier.
-         * \throws std::invalid_argument if the entity is not a valid identifier.
-         */
+        /// \brief Destroys an entity and its components.
+        /// \param entity A valid entity identifier.
+        /// \throws std::invalid_argument if the entity is not a valid identifier.
         void destroy(entity const &entity);
 
-        /**
-         * \brief Check if an entity has no components.
-         * \throws std::invalid_argument if the entity is not a valid identifier.
-         * \return True if the entity is empty, false otherwise.
-         */
+        /// \brief Check if an entity has no components.
+        /// \throws std::invalid_argument if the entity is not a valid identifier.
+        /// \return True if the entity is empty, false otherwise.
         bool empty(entity const &entity) const;
 
-        /**
-         * \brief Clear the registry.
-         * Destroys all the entities in the registry.
-         */
+        /// \brief Clear the registry.
+        /// Destroys all the entities in the registry.
         void clear();
 
-        /**
-         * \brief Get the number of components in an entity.
-         * \throws std::invalid_argument if the entity is not a valid identifier.
-         */
+        /// \brief Get the number of components in an entity.
+        /// \throws std::invalid_argument if the entity is not a valid identifier.
         std::size_t size(entity const &entity) const;
 
-        /**
-         * \brief Get the number of entities in a registry.
-         */
+        /// \brief Get the number of entities in a registry.
         std::size_t size() const;
 
-        /**
-         * \brief Returns a view for the given elements.
-         * \tparam Include Types of included elements used to construct the view.
-         * \tparam Exclude Types of elements used to filter the view.
-         * \param toExclude The type list used to deduce Exclude variadic template argument.
-         * \return A view on entities that are valid at the time of calling this member function and contain given included components and do not contain excluded ones at the time of calling this member function.
-         * view<>() returns all the entities in the registry.
-         */
+        /// \brief Returns a view for the given elements.
+        /// \tparam Include Types of included elements used to construct the view.
+        /// \tparam Exclude Types of elements used to filter the view.
+        /// \param toExclude The type list used to deduce Exclude variadic template argument.
+        /// \return A view on entities that are valid at the time of calling this member function and contain given included components and do not contain excluded ones at the time of calling this member function.
+        /// view<>() returns all the entities in the registry.
         template<typename... Include, typename... Exclude>
         std::vector<entity> view(exclude_t<Exclude...> toExclude = exclude_t{}) const;
 
-        /**
-         * \brief Returns a view for the given elements.
-         * \tparam May Types of elements that entity may have used to construct the view.
-         * \tparam Exclude Types of elements used to filter the view.
-         * \param toExclude The type list used to deduce Exclude variadic template argument.
-         * \return A view on entities that are valid at the time of calling this member function and contain given included components and do not contain excluded ones at the time of calling this member function.
-         * view_any_of<>() returns none of the entities in the registry.
-         */
+        /// \brief Returns a view for the given elements.
+        /// \tparam May Types of elements that entity may have used to construct the view.
+        /// \tparam Exclude Types of elements used to filter the view.
+        /// \param toExclude The type list used to deduce Exclude variadic template argument.
+        /// \return A view on entities that are valid at the time of calling this member function and contain given included components and do not contain excluded ones at the time of calling this member function.
+        /// viewAny<>() returns none of the entities in the registry.
         template<typename... May, typename... Exclude>
-        std::vector<entity> view_any_of(exclude_t<Exclude...> toExclude = exclude_t{}) const;
+        std::vector<entity> viewAny(exclude_t<Exclude...> toExclude = exclude_t{}) const;
 
-        /**
-         * \brief Get a registry that merges two registries.
-         * \param other The second registry.
-         * \return Merged registry containing entities and components from both registries.
-         */
+        /// \brief Get a registry that merges two registries.
+        /// \param other The second registry.
+        /// \return Merged registry containing entities and components from both registries.
         registry merged(registry const &other) const;
 
-        /**
-         * \brief Merge with the other registry.
-         * \param other The registry to merge with.
-         * Adds the entities and their components from the other registry to this registry.
-         */
+        /// \brief Merge with the other registry.
+        /// \param other The registry to merge with.
+        /// Adds the entities and their components from the other registry to this registry.
         void merge(registry const &other);
 
-        /**
-         * \brief Merge the entities of the other registry.
-         * \param other The registry to merge with.
-         * Adds the entities and their components from the other registry to this registry.
-         */
-        void merge_entities(std::vector<entity> const &entities, registry const &other);
+        /// \brief Merge the entities of the other registry.
+        /// \param other The registry to merge with.
+        /// Adds the entities and their components from the other registry to this registry.
+        void merge(std::vector<entity> const &entities, registry const &other);
 
-        /**
-         * \brief Check if the entities from different registries have same components.
-         * \param first,second The entities to compare.
-         * \param secondRegistry The registry \p second entity belongs to.
-         * \throws std::invalid_argument if the entity is not a valid identifier.
-         * \return True if the signature of the first entity equals to the signature of the second, false otherwise.
-         */
+        /// \brief Check if the entities from different registries have same components.
+        /// \param first,second The entities to compare.
+        /// \param secondRegistry The registry \p second entity belongs to.
+        /// \throws std::invalid_argument if the entity is not a valid identifier.
+        /// \return True if the signature of the first entity equals to the signature of the second, false otherwise.
         bool same(entity const &first, entity const &second, registry const &secondRegistry);
 
-        /**
-         * \brief Check if the entities from the same registry have same components.
-         * \param first,second The entities to compare.
-         * \throws std::invalid_argument if the entity is not a valid identifier.
-         * \return True if the signature of the first entity equals to the signature of the second, false otherwise.
-         */
+        /// \brief Check if the entities from the same registry have same components.
+        /// \param first,second The entities to compare.
+        /// \throws std::invalid_argument if the entity is not a valid identifier.
+        /// \return True if the signature of the first entity equals to the signature of the second, false otherwise.
         bool same(entity const &first, entity const &second);
-    private:
-        entity create(signature signature);
     };
 } // namespace ecs
-
-// ===============
-// Implementation
-// ===============
 
 /*! \cond Doxygen_Suppress */
 
 template <typename dense_t>
 inline void ecs::sparse_set<dense_t>::setDenseIndex(sparse_type const &sparse, std::size_t index)
 {
-    ECS_PROFILE;
     // Check sparse < 0 in case sparse_type becomes a template parameter again.
     // if(sparse < 0) 
     //     return null;
@@ -687,7 +559,6 @@ inline void ecs::sparse_set<dense_t>::setDenseIndex(sparse_type const &sparse, s
 template <typename dense_t>
 inline std::size_t ecs::sparse_set<dense_t>::getDenseIndex(sparse_type const &sparse) const
 {
-    ECS_PROFILE;
     // Check sparse < 0 in case sparse_type becomes a template parameter again.
     // if(sparse < 0) 
     //     return null;
@@ -699,7 +570,6 @@ inline std::size_t ecs::sparse_set<dense_t>::getDenseIndex(sparse_type const &sp
 template <typename dense_t>
 inline ecs::sparse_set<dense_t>::sparse_set(std::size_t capacity)
 {
-    ECS_PROFILE;
     reserve(capacity);
 }
 template <typename dense_t>
@@ -715,6 +585,7 @@ inline ecs::sparse_set<dense_t>::sparse_set(sparse_set &&other) noexcept
 template <typename dense_t>
 inline ecs::sparse_set<dense_t> &ecs::sparse_set<dense_t>::operator=(sparse_set const &other)
 {
+    ECS_PROFILE;
     m_dense = other.m_dense;
     m_denseToSparse = other.m_denseToSparse;
     m_sparse = other.m_sparse;
@@ -723,6 +594,7 @@ inline ecs::sparse_set<dense_t> &ecs::sparse_set<dense_t>::operator=(sparse_set 
 template <typename dense_t>
 inline ecs::sparse_set<dense_t> &ecs::sparse_set<dense_t>::operator=(sparse_set &&other) noexcept
 {
+    ECS_PROFILE;
     swap(other);
     return *this;
 }
@@ -730,7 +602,6 @@ template <typename dense_t>
 template <class... Args>
 inline void ecs::sparse_set<dense_t>::emplace(sparse_type const &sparse, Args &&...args)
 {
-    ECS_PROFILE;
     ECS_ASSERT(getDenseIndex(sparse) == null, "element added to the same sparse index more than once!");
 
     if constexpr(std::is_aggregate_v<dense_type> && (sizeof...(Args) != 0u || !std::is_default_constructible_v<dense_type>)) 
@@ -745,7 +616,6 @@ inline void ecs::sparse_set<dense_t>::emplace(sparse_type const &sparse, Args &&
 template <typename dense_t>
 inline void ecs::sparse_set<dense_t>::erase(sparse_type const &sparse)
 {
-    ECS_PROFILE;
     ECS_ASSERT(getDenseIndex(sparse) != null, "removing a non-existing element from a sparse index!");
 
     std::size_t removedDenseIndex = getDenseIndex(sparse);
@@ -864,6 +734,7 @@ inline typename ecs::sparse_set<dense_t>::iterator ecs::sparse_set<dense_t>::end
 template <typename dense_t>
 inline void ecs::sparse_set<dense_t>::swap(sparse_set<dense_type> &&other)
 {
+    ECS_PROFILE;
     std::swap(m_dense, other.m_dense);
     std::swap(m_denseToSparse, other.m_denseToSparse);
     std::swap(m_sparse, other.m_sparse);
@@ -885,7 +756,6 @@ inline ecs::entity_manager::entity_manager(ecs::entity numEntities)
 inline ecs::entity ecs::entity_manager::createEntity(signature signature)
 {
     ECS_PROFILE;
-
     entity entity = m_availableEntityIDs.front();
     m_availableEntityIDs.pop();
     ++m_livingEntitiesCount;
@@ -935,7 +805,6 @@ inline ecs::signature const &ecs::entity_manager::getSignature(entity const &ent
 }
 inline bool ecs::entity_manager::valid(entity const &entity) const
 {
-    ECS_PROFILE;
     return 1 <= entity && entity < m_nextID && m_signatures.contains(entity);
 }
 inline std::size_t ecs::entity_manager::size() const
@@ -957,6 +826,7 @@ inline void ecs::component_array<component_t>::onEntityDestroyed(entity const &e
 template <typename component_t>
 inline void ecs::component_array<component_t>::copyEntityFrom(icomponent_array const *other, entity const &to, entity const &from)
 {
+    ECS_PROFILE;
     ECS_ASSERT(other, "");
     ecs::component_array<component_t> const *otherArray = static_cast<ecs::component_array<component_t> const *>(other);
     ECS_ASSERT(this->contains(to) && otherArray->contains(from), "");
@@ -965,17 +835,20 @@ inline void ecs::component_array<component_t>::copyEntityFrom(icomponent_array c
 template <typename component_t>
 inline void ecs::component_array<component_t>::addEntity(entity const &entity)
 {
+    ECS_PROFILE;
     ECS_ASSERT(!this->contains(entity), "Component array already has the entity");
     this->emplace(entity);
 }
 template <typename component_t>
 inline std::unique_ptr<ecs::icomponent_array> ecs::component_array<component_t>::cloneEmpty() const
 {
+    ECS_PROFILE;
     return std::unique_ptr<ecs::icomponent_array>{new ecs::component_array<component_t>{}};
 }
 template <typename component_t>
 inline std::unique_ptr<ecs::icomponent_array> ecs::component_array<component_t>::clone() const
 {
+    ECS_PROFILE;
     return std::unique_ptr<ecs::icomponent_array>{new ecs::component_array<component_t>{*this}};
 }
 
@@ -992,7 +865,6 @@ inline void ecs::component_manager::registerComponent()
 template <typename component_t>
 inline ecs::component_id ecs::component_manager::getComponentID()
 {
-    ECS_PROFILE;
     ECS_ASSERT(m_nextID < MAX_COMPONENTS, "too many components registered!");
     static const component_id id = m_nextID++;
     return id;
@@ -1023,6 +895,7 @@ inline ecs::component_manager::component_manager(component_manager const &other)
 }
 inline ecs::component_manager &ecs::component_manager::operator=(component_manager const &other)
 {
+    ECS_PROFILE;
     for(auto [id, ptr] : other.m_componentArrays)
     {
         m_componentArrays.emplace(id, ptr->clone());
@@ -1078,20 +951,6 @@ inline component_t const &ecs::registry::get(entity const &entity) const
     
     return m_componentManager.getComponentArray<component_t>()->get(entity);
 }
-inline ecs::entity ecs::registry::create(signature signature)
-{
-    entity entity = m_entityManager.createEntity(signature);
-    for(std::size_t id = 0; id < component_manager::getNextID(); ++id)
-    {
-        if(signature.test(id))
-        {
-            ECS_ASSERT(m_componentManager.getComponentArrays().contains(id), "unregistered component");
-            m_componentManager.getComponentArrays().get(id)->addEntity(entity);
-        }
-    }
-
-    return entity;
-}
 template <typename... Components_t>
 inline ecs::entity ecs::registry::create()
 {
@@ -1107,7 +966,6 @@ inline ecs::entity ecs::registry::create()
 template <typename... Components_t>
 inline ecs::entity ecs::registry::create(Components_t &&...components)
 {
-    ECS_PROFILE;
     
     (m_componentManager.registerComponent<std::decay_t<Components_t>>(), ...);
     entity entity = m_entityManager.createEntity({});
@@ -1150,6 +1008,7 @@ inline ecs::registry::registry(registry &&other) noexcept
 }
 inline ecs::registry &ecs::registry::operator=(registry const &other)
 {
+    ECS_PROFILE;
     m_entityManager = other.m_entityManager;
     m_componentManager = other.m_componentManager;
     return *this;
@@ -1161,6 +1020,7 @@ inline ecs::registry &ecs::registry::operator=(registry &&other) noexcept
 }
 inline void ecs::registry::swap(registry &other) noexcept
 {
+    ECS_PROFILE;
     std::swap(m_entityManager, other.m_entityManager);
     std::swap(m_componentManager, other.m_componentManager);
 }
@@ -1190,13 +1050,16 @@ inline void ecs::registry::clear()
     for(entity const &e : view<>())
         destroy(e);
 }
-inline std::size_t ecs::registry::size(entity const &entity) const {
-  if (!valid(entity))
-    ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
-  return m_entityManager.getSignature(entity).count();
+inline std::size_t ecs::registry::size(entity const &entity) const 
+{
+    ECS_PROFILE;
+    if(!valid(entity))
+        ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
+    return m_entityManager.getSignature(entity).count();
 }
 inline std::size_t ecs::registry::size() const
 {
+    ECS_PROFILE;
     return m_entityManager.size();
 }
 inline ecs::registry ecs::registry::merged(ecs::registry const &other) const
@@ -1210,13 +1073,11 @@ inline ecs::registry ecs::registry::merged(ecs::registry const &other) const
 inline void ecs::registry::merge(ecs::registry const &other)
 {
     ECS_PROFILE;
-
-    merge_entities(other.view<>(), other);
+    merge(other.view<>(), other);
 }
-inline void ecs::registry::merge_entities(std::vector<entity> const &entities, registry const &other)
+inline void ecs::registry::merge(std::vector<entity> const &entities, registry const &other)
 {
     ECS_PROFILE;
-    
     for(entity const &other_entity : entities)
     {
         auto signature = other.m_entityManager.getSignature(other_entity);
@@ -1228,11 +1089,15 @@ inline void ecs::registry::merge_entities(std::vector<entity> const &entities, r
                 m_componentManager.getComponentArrays().emplace(id, other.m_componentManager.getComponentArrays().get(id)->cloneEmpty());
         }
 
-        entity entity = create(signature);
-        for(std::size_t id = 0; id < component_manager::getNextID(); ++id) 
+        entity entity = m_entityManager.createEntity(signature);
+        for(std::size_t id = 0; id < component_manager::getNextID(); ++id)
         {
-            if(!signature.test(id)) 
-                continue;
+            if(signature.test(id))
+            {
+                ECS_ASSERT(m_componentManager.getComponentArrays().contains(id), "unregistered component (bug?)");
+                m_componentManager.getComponentArrays().get(id)->addEntity(entity);
+            }
+            else continue;
 
             m_componentManager.getComponentArrays().get(id)->copyEntityFrom(other.m_componentManager.getComponentArrays().get(id).get(), entity, other_entity);
         }
@@ -1240,12 +1105,14 @@ inline void ecs::registry::merge_entities(std::vector<entity> const &entities, r
 }
 inline bool ecs::registry::same(entity const &first, entity const &second, registry const &secondRegistry)
 {
+    ECS_PROFILE;
     if(!valid(first) || !secondRegistry.valid(second)) 
         ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
     return m_entityManager.getSignature(first) == secondRegistry.m_entityManager.getSignature(second);
 }
 inline bool ecs::registry::same(entity const &first, entity const &second)
 {
+    ECS_PROFILE;
     if(!valid(first) || !valid(second)) 
         ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
     return m_entityManager.getSignature(first) == m_entityManager.getSignature(second);
@@ -1254,7 +1121,6 @@ template <typename... Include, typename... Exclude>
 inline std::vector<ecs::entity> ecs::registry::view(exclude_t<Exclude...>) const
 {
     ECS_PROFILE;
-
     ecs::signature required;
     ecs::signature excluded;
     (required.set(component_manager::getComponentID<Include>()), ...);
@@ -1272,10 +1138,9 @@ inline std::vector<ecs::entity> ecs::registry::view(exclude_t<Exclude...>) const
     return result;
 }
 template <typename... May, typename... Exclude>
-inline std::vector<ecs::entity> ecs::registry::view_any_of(exclude_t<Exclude...> toExclude) const 
+inline std::vector<ecs::entity> ecs::registry::viewAny(exclude_t<Exclude...> toExclude) const 
 {
     ECS_PROFILE;
-
     ecs::signature required;
     ecs::signature excluded;
     (required.set(component_manager::getComponentID<May>()), ...);

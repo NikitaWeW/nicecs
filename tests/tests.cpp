@@ -244,7 +244,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         }
 
         {
-            auto posView = reg.view_any_of<Position>();
+            auto posView = reg.viewAny<Position>();
             REQUIRE(posView.size() == 3);
             REQUIRE(std::find(posView.begin(), posView.end(), e0) == posView.end());
             REQUIRE(std::find(posView.begin(), posView.end(), e1) != posView.end());
@@ -252,7 +252,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
             REQUIRE(std::find(posView.begin(), posView.end(), e3) != posView.end());
             REQUIRE(std::find(posView.begin(), posView.end(), e4) == posView.end());
     
-            auto posOnly = reg.view_any_of<Position>(ecs::exclude_t<Velocity>{});
+            auto posOnly = reg.viewAny<Position>(ecs::exclude_t<Velocity>{});
             REQUIRE(posOnly.size() == 2);
             REQUIRE(std::find(posOnly.begin(), posOnly.end(), e0) == posOnly.end());
             REQUIRE(std::find(posOnly.begin(), posOnly.end(), e1) != posOnly.end());
@@ -260,7 +260,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
             REQUIRE(std::find(posOnly.begin(), posOnly.end(), e3) != posOnly.end());
             REQUIRE(std::find(posOnly.begin(), posOnly.end(), e4) == posOnly.end());
     
-            auto velView = reg.view_any_of<Position, Velocity>();
+            auto velView = reg.viewAny<Position, Velocity>();
             REQUIRE(velView.size() == 4);
             REQUIRE(std::find(velView.begin(), velView.end(), e0) == velView.end());
             REQUIRE(std::find(velView.begin(), velView.end(), e1) != velView.end());
@@ -270,7 +270,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         }
 
         REQUIRE(reg.view<>().size() == reg.size());
-        REQUIRE(reg.view_any_of<>().size() == 0);
+        REQUIRE(reg.viewAny<>().size() == 0);
     }
 
     SECTION("merge")
@@ -310,7 +310,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
 
         reg.clear();
 
-        reg.merge_entities(reg2.view<Position>(ecs::exclude_t<Velocity>{}), reg2);
+        reg.merge(reg2.view<Position>(ecs::exclude_t<Velocity>{}), reg2);
 
         REQUIRE(reg.size() == 2);
     }

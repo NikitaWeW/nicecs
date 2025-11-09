@@ -7,7 +7,6 @@ Actually, its just an EC (entity component) as the library provides no systems a
 - Simple API.
 - Sparse set storage (ecs::sparse_set available for use).
 - Type safe component manipulation.
-- Thread safe ([kinda](#thread-safety)).
 
 ## Integration
 
@@ -79,14 +78,9 @@ ctest .
 ```
 
 ## Thread safety
-You can redefine ECS_SYNCHRONIZE(...) to disable synchronization.
-```c
-#define ECS_SYNCHRONIZE(...)
-```
+The library is not synchronized. Even if it was, it still would be unusable in multithreaded applications, because of stale data issues.
 
-`ecs::registry` is synchronized, however beware of getting references or pointers to components, 
-because `ecs::sparse_set` maintains dense storage by moving components, which invalidates pointers / references. 
-Also the components might be modified by another thread.
+You will need to manually synchronize the usage the library.
 
 ## Older development
 
