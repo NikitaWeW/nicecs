@@ -2,7 +2,7 @@
       ___  ___ ___ 
      / _ \/ __/ __|        Copyright (c) 2024 Nikita Martynau 
     |  __/ (__\__ \        https://opensource.org/license/mit 
-     \___|\___|___/ v1.5.2 https://github.com/nikitawew/nicecs
+     \___|\___|___/ v1.5.3 https://github.com/nikitawew/nicecs
 
 Thanks to this article: https://austinmorlan.com/posts/entity_component_system.
 Took a bit of inspiration from https://github.com/skypjack/entt.
@@ -191,9 +191,7 @@ namespace ecs
             inline iterator() : m_owner(nullptr), m_index(0) {}
             inline iterator(sparse_set *owner, std::size_t index) : m_owner(owner), m_index(index) {}
 
-            inline reference operator*() const {
-                return {m_owner->m_denseToSparse[m_index], m_owner->m_dense[m_index]};
-            }
+            inline reference operator*() const { return {m_owner->m_denseToSparse[m_index], m_owner->m_dense[m_index]}; }
 
             inline iterator &operator++() { ++m_index; return *this; }
             inline iterator operator++(int) { iterator tmp = *this; ++m_index; return tmp; }
@@ -236,9 +234,7 @@ namespace ecs
             inline const_iterator() : m_owner(nullptr), m_index(0) {}
             inline const_iterator(sparse_set const *owner, std::size_t index) : m_owner(owner), m_index(index) {}
 
-            inline reference operator*() const {
-                return {m_owner->m_denseToSparse[m_index], m_owner->m_dense[m_index]};
-            }
+            inline reference operator*() const { return {m_owner->m_denseToSparse[m_index], m_owner->m_dense[m_index]}; }
 
             inline const_iterator &operator++() { ++m_index; return *this; }
             inline const_iterator operator++(int) { const_iterator tmp = *this; ++m_index; return tmp; }
@@ -554,7 +550,7 @@ inline void ecs::sparse_set<dense_t>::setDenseIndex(sparse_type const &sparse, s
     // if(sparse < 0) 
     //     return null;
     if(sparse >= m_sparse.size())
-        m_sparse.resize(sparse + 10, null);
+        m_sparse.resize(std::max(m_sparse.size() * 2, sparse+1), null);
 
     m_sparse[sparse] = index;
 }
@@ -1081,31 +1077,8 @@ inline ecs::registry ecs::registry::merged(ecs::registry const &other) const
 inline void ecs::registry::merge(ecs::registry const &other)
 {
     ECS_PROFILE;
-    for(auto const &[signature, group] : other.m_entityManager.getEntityGroups())
-    {
-        for(std::size_t id = 0; id < component_manager::getNextID(); ++id) 
-        {
-            if(!signature.test(id)) 
-                continue;
-            if(!m_componentManager.getComponentArrays().contains(id))
-                m_componentManager.getComponentArrays().emplace(id, other.m_componentManager.getComponentArrays().get(id)->cloneEmpty());
-        }
-        for(auto const &other_entity : group.data())
-        {
-            entity entity = m_entityManager.createEntity(signature);
-            for(std::size_t id = 0; id < component_manager::getNextID(); ++id)
-            {
-                if(signature.test(id))
-                {
-                    ECS_ASSERT(m_componentManager.getComponentArrays().contains(id), "unregistered component (bug?)");
-                    m_componentManager.getComponentArrays().get(id)->addEntity(entity);
-                }
-                else continue;
-
-                m_componentManager.getComponentArrays().get(id)->copyEntityFrom(other.m_componentManager.getComponentArrays().get(id).get(), entity, other_entity);
-            }
-        }
-    }
+    // View might be unnecessary, but it keeps the code dry.
+    merge(other.view<>(), other); 
 }
 inline void ecs::registry::merge(std::vector<entity> const &entities, registry const &other)
 {
