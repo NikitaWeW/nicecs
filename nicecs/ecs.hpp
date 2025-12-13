@@ -2,7 +2,7 @@
       ___  ___ ___ 
      / _ \/ __/ __|        Copyright (c) 2024 Nikita Martynau 
     |  __/ (__\__ \        https://opensource.org/license/mit 
-     \___|\___|___/ v1.5.4 https://github.com/nikitawew/nicecs
+     \___|\___|___/ v1.5.5 https://github.com/nikitawew/nicecs
 
 Thanks to this article: https://austinmorlan.com/posts/entity_component_system.
 Took a very little bit of inspiration from https://github.com/skypjack/entt.
@@ -586,7 +586,7 @@ inline ecs::sparse_set<dense_t>::sparse_set(sparse_set const &other)
 template <typename dense_t>
 inline ecs::sparse_set<dense_t>::sparse_set(sparse_set &&other) noexcept
 {
-    *this = other;
+    *this = std::move(other);
 }
 template <typename dense_t>
 inline ecs::sparse_set<dense_t> &ecs::sparse_set<dense_t>::operator=(sparse_set const &other)
@@ -1013,7 +1013,7 @@ inline ecs::registry::registry(registry const &other)
 }
 inline ecs::registry::registry(registry &&other) noexcept
 {
-    *this = other;
+    *this = std::move(other);
 }
 inline ecs::registry &ecs::registry::operator=(registry const &other)
 {
