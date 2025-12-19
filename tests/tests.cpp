@@ -13,16 +13,21 @@ struct AssertException {};
 TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]")
 {
     ecs::sparse_set<std::string> s;
+    REQUIRE(s.empty());
+    REQUIRE(s.size() == 0);
     s.emplace(1, "Position");
     s.emplace(2, "Velocity");
     s.emplace(3, "C");
     s.emplace(4, "D");
     s.emplace(5, "E");
     s.emplace(6, "F");
+    REQUIRE(s.size() == 6);
+    REQUIRE_FALSE(s.empty());
 
     REQUIRE_THROWS_AS(s.emplace(1), AssertException);
 
     s.erase(2);
+    REQUIRE(s.size() == 5);
     REQUIRE(s.contains(1));
     REQUIRE_FALSE(s.contains(2));
     REQUIRE(s.contains(3));
@@ -33,6 +38,7 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]")
     REQUIRE(s.data() == expected1);
 
     s.erase(5);
+    REQUIRE(s.size() == 4);
     REQUIRE_FALSE(s.contains(5));
     REQUIRE(s.data().size() == 4);
     REQUIRE(std::find(s.data().begin(), s.data().end(), "Position") != s.data().end());
@@ -45,6 +51,8 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]")
     }
 
     REQUIRE(s.data().empty());
+    REQUIRE(s.empty());
+    REQUIRE(s.size() == 0);
     REQUIRE(s.getDenseToSparse().empty());
 
     s.shrink_to_fit();

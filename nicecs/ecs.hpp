@@ -2,7 +2,7 @@
       ___  ___ ___ 
      / _ \/ __/ __|        Copyright (c) 2024 Nikita Martynau 
     |  __/ (__\__ \        https://opensource.org/license/mit 
-     \___|\___|___/ v1.5.5 https://github.com/nikitawew/nicecs
+     \___|\___|___/ v1.5.6 https://github.com/nikitawew/nicecs
 
 Thanks to this article: https://austinmorlan.com/posts/entity_component_system.
 Took a very little bit of inspiration from https://github.com/skypjack/entt.
@@ -26,8 +26,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <limits>
 #include <unordered_map>
 #include <algorithm>
-#include <shared_mutex>
-#include <numeric>
 
 /*! \cond Doxygen_Suppress */
 // Config section 
@@ -154,6 +152,10 @@ namespace ecs
 
         /// @return True if the container is empty, false otherwise.
         bool empty() const;
+
+        /// Get the size of the container.
+        /// @return Dense list size.
+        std::size_t size() const;
 
         /// @brief Clear the sparse set.
         void clear();
@@ -743,6 +745,11 @@ template <typename dense_t>
 inline bool ecs::sparse_set<dense_t>::empty() const
 {
     return m_dense.empty();
+}
+template <typename dense_t>
+inline std::size_t ecs::sparse_set<dense_t>::size() const
+{
+    return m_dense.size();
 }
 
 inline ecs::impl::entity_manager::entity_manager()
