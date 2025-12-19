@@ -9,3 +9,4 @@ Testing
 perf.data
 profile-perf.txt
 callgrind.out.*
+.cache

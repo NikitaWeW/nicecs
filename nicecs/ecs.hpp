@@ -2,7 +2,7 @@
       ___  ___ ___ 
      / _ \/ __/ __|        Copyright (c) 2024 Nikita Martynau 
     |  __/ (__\__ \        https://opensource.org/license/mit 
-     \___|\___|___/ v1.5.4 https://github.com/nikitawew/nicecs
+     \___|\___|___/ v1.5.5 https://github.com/nikitawew/nicecs
 
 Thanks to this article: https://austinmorlan.com/posts/entity_component_system.
 Took a very little bit of inspiration from https://github.com/skypjack/entt.
@@ -166,8 +166,6 @@ namespace ecs
         iterator begin();
         /// @brief The end of the dense list.
         iterator end();
-
-        void swap(sparse_set<dense_type> &&other);
     public:
         /// @brief The [sparse; dense] pair iterator.
         class iterator
@@ -423,7 +421,6 @@ namespace impl
         registry(registry &&other) noexcept;
         registry &operator=(registry const &other);
         registry &operator=(registry &&other) noexcept;
-        void swap(registry &other) noexcept; 
 
         /// @copydoc impl::entity_manager::valid
         bool valid(entity const &entity) const;
@@ -586,7 +583,7 @@ inline ecs::sparse_set<dense_t>::sparse_set(sparse_set const &other)
 template <typename dense_t>
 inline ecs::sparse_set<dense_t>::sparse_set(sparse_set &&other) noexcept
 {
-    *this = other;
+    *this = std::move(other);
 }
 template <typename dense_t>
 inline ecs::sparse_set<dense_t> &ecs::sparse_set<dense_t>::operator=(sparse_set const &other)
@@ -600,7 +597,11 @@ inline ecs::sparse_set<dense_t> &ecs::sparse_set<dense_t>::operator=(sparse_set 
 template <typename dense_t>
 inline ecs::sparse_set<dense_t> &ecs::sparse_set<dense_t>::operator=(sparse_set &&other) noexcept
 {
-    swap(other);
+    ECS_PROFILE;
+    std::swap(m_dense, other.m_dense);
+    std::swap(m_denseToSparse, other.m_denseToSparse);
+    std::swap(m_sparse, other.m_sparse);
+    
     return *this;
 }
 template <typename dense_t>
@@ -737,14 +738,6 @@ template <typename dense_t>
 inline typename ecs::sparse_set<dense_t>::iterator ecs::sparse_set<dense_t>::end()
 {
     return {this, m_dense.size()};
-}
-template <typename dense_t>
-inline void ecs::sparse_set<dense_t>::swap(sparse_set<dense_type> &&other)
-{
-    ECS_PROFILE;
-    std::swap(m_dense, other.m_dense);
-    std::swap(m_denseToSparse, other.m_denseToSparse);
-    std::swap(m_sparse, other.m_sparse);
 }
 template <typename dense_t>
 inline bool ecs::sparse_set<dense_t>::empty() const
@@ -1013,7 +1006,7 @@ inline ecs::registry::registry(registry const &other)
 }
 inline ecs::registry::registry(registry &&other) noexcept
 {
-    *this = other;
+    *this = std::move(other);
 }
 inline ecs::registry &ecs::registry::operator=(registry const &other)
 {
@@ -1024,14 +1017,10 @@ inline ecs::registry &ecs::registry::operator=(registry const &other)
 }
 inline ecs::registry &ecs::registry::operator=(registry &&other) noexcept
 {
-    swap(other);
-    return *this;
-}
-inline void ecs::registry::swap(registry &other) noexcept
-{
     ECS_PROFILE;
     std::swap(m_entityManager, other.m_entityManager);
     std::swap(m_componentManager, other.m_componentManager);
+    return *this;
 }
 inline bool ecs::registry::valid(entity const &entity) const
 {
