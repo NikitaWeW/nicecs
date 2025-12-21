@@ -69,8 +69,9 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]")
     REQUIRE(s.sparseData().capacity() == 100);
 
     REQUIRE_THROWS_AS(s.get(0), AssertException);
-    REQUIRE_THROWS_AS(s[0], AssertException);
     REQUIRE_THROWS_AS(s.erase(0), AssertException);
+    REQUIRE_NOTHROW(s[0]);
+    s.erase(0);
 
     s.emplace(1, "Position");
     s.emplace(2, "Velocity");

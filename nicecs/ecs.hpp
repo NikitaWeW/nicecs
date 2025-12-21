@@ -2,7 +2,7 @@
       ___  ___ ___ 
      / _ \/ __/ __|        Copyright (c) 2024 Nikita Martynau 
     |  __/ (__\__ \        https://opensource.org/license/mit 
-     \___|\___|___/ v1.5.6 https://github.com/nikitawew/nicecs
+     \___|\___|___/ v1.5.7 https://github.com/nikitawew/nicecs
 
 Thanks to this article: https://austinmorlan.com/posts/entity_component_system.
 Took a very little bit of inspiration from https://github.com/skypjack/entt.
@@ -121,11 +121,9 @@ namespace ecs
         /// @copydoc get
         dense_type &get(sparse_type const &sparse);
 
-        /// @copydoc get
+        /// @brief Get an element. Just like std::map::operator[]
+        /// If the container doesent contain @p sparse index, default construct it. 
         dense_type &operator[](sparse_type const &sparse);
-
-        /// @copydoc get
-        dense_type const &operator[](sparse_type const &sparse) const;
 
         /// @brief Gets the dense list.
         /// @return A std::vector with the elements.
@@ -691,11 +689,8 @@ inline typename ecs::sparse_set<dense_t>::dense_type &ecs::sparse_set<dense_t>::
 template <typename dense_t>
 inline typename ecs::sparse_set<dense_t>::dense_type &ecs::sparse_set<dense_t>::operator[](sparse_type const &sparse)
 {
-    return get(sparse);
-}
-template <typename dense_t>
-inline typename ecs::sparse_set<dense_t>::dense_type const &ecs::sparse_set<dense_t>::operator[](sparse_type const &sparse) const
-{
+    if(!contains(sparse))
+        emplace(sparse);
     return get(sparse);
 }
 template <typename dense_t>
@@ -809,7 +804,7 @@ inline ecs::signature const &ecs::impl::entity_manager::getSignature(entity cons
 {
     ECS_ASSERT(valid(entity), "invalid entity identifier!");
     
-    return m_signatures[entity];
+    return m_signatures.get(entity);
 }
 inline bool ecs::impl::entity_manager::valid(entity const &entity) const
 {
