@@ -90,7 +90,6 @@ namespace ecs
         std::vector<std::size_t> m_sparse;
 
         void setDenseIndex(sparse_type const &sparse, std::size_t index);
-        std::size_t getDenseIndex(sparse_type const &sparse) const;
     public:
         /// @param capacity The optional capacity to reserve.
         sparse_set(std::size_t capacity = 10);
@@ -132,6 +131,11 @@ namespace ecs
         /// @brief Get dense to sparse mapping.
         /// @return 1 to 1 with the dense data vector with the dense to sparse mapping.
         std::vector<sparse_type> const &getDenseToSparse() const;
+
+        /// @brief Get an index of the element at sparse index.
+        /// @param sparse The sparse index.
+        /// @return The index of the element, null if container doesent contain @p sparse.
+        std::size_t getDenseIndex(sparse_type const &sparse) const;
 
         /// @brief Get the sparse pages.
         /// @return The paginated vector with the sparse indices. The ones that are equal to null are null pointers.
@@ -560,7 +564,7 @@ template <typename dense_t>
 inline std::size_t ecs::sparse_set<dense_t>::getDenseIndex(sparse_type const &sparse) const
 {
     ECS_PROFILE;
-    // Check sparse < 0 in case sparse_type becomes a template parameter again.
+    // WARNING: Check sparse < 0 in case sparse_type becomes a template parameter again.
     // if(sparse < 0) 
     //     return null;
     if(sparse >= m_sparse.size()) 
