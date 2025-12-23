@@ -258,6 +258,9 @@ namespace ecs
         };
     };
 
+    /// @brief An alias for sparse_set::null.
+    constexpr auto SPARSE_SET_NULL = sparse_set<int>::null;
+
 namespace impl
 {
 
