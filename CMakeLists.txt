@@ -1,1 +1,12 @@
-https://github.com/NikitaWeW/ecs.git
+cmake_minimum_required(VERSION 3.10)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+project(ECS CXX)
+
+cmake_policy(SET CMP0076 NEW)
+
+add_library(ecs INTERFACE)
+target_sources(ecs PUBLIC nicecs/ecs.hpp)
+target_include_directories(ecs INTERFACE .)
+add_library(nicecs::ecs ALIAS ecs)
