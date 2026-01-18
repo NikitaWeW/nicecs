@@ -126,7 +126,7 @@ namespace ecs
 
         /// @brief Gets the dense list.
         /// @return A std::vector with the elements.
-        std::vector<dense_type> const &data() const;
+        std::vector<dense_type> const &dense() const;
 
         /// @brief Get dense to sparse mapping.
         /// @return 1 to 1 with the dense data vector with the dense to sparse mapping.
@@ -139,7 +139,7 @@ namespace ecs
 
         /// @brief Get the sparse pages.
         /// @return The paginated vector with the sparse indices. The ones that are equal to null are null pointers.
-        std::vector<std::size_t> const &sparseData() const;
+        std::vector<std::size_t> const &sparse() const;
 
         /// @brief Check whether the sparse set contains an element at a given sparse index.
         /// @param sparse A sparse index.
@@ -701,7 +701,7 @@ inline typename ecs::sparse_set<dense_t>::dense_type &ecs::sparse_set<dense_t>::
     return get(sparse);
 }
 template <typename dense_t>
-inline std::vector<typename ecs::sparse_set<dense_t>::dense_type> const &ecs::sparse_set<dense_t>::data() const
+inline std::vector<typename ecs::sparse_set<dense_t>::dense_type> const &ecs::sparse_set<dense_t>::dense() const
 {
     return m_dense;
 }
@@ -711,7 +711,7 @@ inline std::vector<typename ecs::sparse_set<dense_t>::sparse_type> const &ecs::s
     return m_denseToSparse;
 }
 template <typename dense_t>
-inline std::vector<std::size_t> const &ecs::sparse_set<dense_t>::sparseData() const
+inline std::vector<std::size_t> const &ecs::sparse_set<dense_t>::sparse() const
 {
     return m_sparse;
 }
@@ -916,7 +916,7 @@ inline ecs::impl::component_manager &ecs::impl::component_manager::operator=(imp
 inline void ecs::impl::component_manager::entityDestroyed(entity const &entity) const
 {
     ECS_PROFILE;
-    for(auto &componentArray : m_componentArrays.data()) {
+    for(auto &componentArray : m_componentArrays.dense()) {
         componentArray->onEntityDestroyed(entity);
     }
 }
@@ -1140,7 +1140,7 @@ inline std::vector<ecs::entity> ecs::registry::view(exclude_t<Exclude...>) const
     for(auto const &[signature, group] : m_entityManager.getEntityGroups())
     {
         if((signature & required) == required && (signature & excluded).none())
-            result.insert(result.end(), group.data().begin(), group.data().end());
+            result.insert(result.end(), group.dense().begin(), group.dense().end());
     }
 
     return result;
@@ -1160,7 +1160,7 @@ inline std::vector<ecs::entity> ecs::registry::viewAny(exclude_t<Exclude...> toE
     for(auto const &[signature, group] : m_entityManager.getEntityGroups())
     {
         if((signature & required).any() && (signature & excluded).none())
-            result.insert(result.end(), group.data().begin(), group.data().end());
+            result.insert(result.end(), group.dense().begin(), group.dense().end());
     }
 
     return result;

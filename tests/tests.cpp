@@ -35,38 +35,38 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]")
     REQUIRE(s.contains(5));
     REQUIRE(s.contains(6));
     std::vector<std::string> expected1 = { "Position", "F", "C", "D", "E" };
-    REQUIRE(s.data() == expected1);
+    REQUIRE(s.dense() == expected1);
 
     s.erase(5);
     REQUIRE(s.size() == 4);
     REQUIRE_FALSE(s.contains(5));
-    REQUIRE(s.data().size() == 4);
-    REQUIRE(std::find(s.data().begin(), s.data().end(), "Position") != s.data().end());
-    REQUIRE(std::find(s.data().begin(), s.data().end(), "D") != s.data().end());
+    REQUIRE(s.dense().size() == 4);
+    REQUIRE(std::find(s.dense().begin(), s.dense().end(), "Position") != s.dense().end());
+    REQUIRE(std::find(s.dense().begin(), s.dense().end(), "D") != s.dense().end());
 
-    for(size_t i = 0; i < s.sparseData().size(); ++i)
+    for(size_t i = 0; i < s.sparse().size(); ++i)
     {
-        if(s.sparseData()[i] != ecs::sparse_set<int>::null)
+        if(s.sparse()[i] != ecs::sparse_set<int>::null)
             s.erase(i);
     }
 
-    REQUIRE(s.data().empty());
+    REQUIRE(s.dense().empty());
     REQUIRE(s.empty());
     REQUIRE(s.size() == 0);
     REQUIRE(s.getDenseToSparse().empty());
 
     s.shrink_to_fit();
 
-    REQUIRE(s.data().capacity() == 0);
+    REQUIRE(s.dense().capacity() == 0);
     REQUIRE(s.getDenseToSparse().capacity() == 0);
-    REQUIRE(s.sparseData().capacity() == 0);
-    REQUIRE(s.sparseData().empty());
+    REQUIRE(s.sparse().capacity() == 0);
+    REQUIRE(s.sparse().empty());
 
     s.reserve(100);
 
-    REQUIRE(s.data().capacity() == 100);
+    REQUIRE(s.dense().capacity() == 100);
     REQUIRE(s.getDenseToSparse().capacity() == 100);
-    REQUIRE(s.sparseData().capacity() == 100);
+    REQUIRE(s.sparse().capacity() == 100);
 
     REQUIRE_THROWS_AS(s.get(0), AssertException);
     REQUIRE_THROWS_AS(s.erase(0), AssertException);
@@ -80,13 +80,13 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]")
     s.emplace(5, "E");
     s.emplace(6, "F");
 
-    REQUIRE(s.data().size() == 6);
+    REQUIRE(s.dense().size() == 6);
     REQUIRE(s.getDenseToSparse().size() == 6);
 
     s.clear();
 
-    REQUIRE(s.data().size() == 0);
-    REQUIRE(s.sparseData().size() == 0);
+    REQUIRE(s.dense().size() == 0);
+    REQUIRE(s.sparse().size() == 0);
     REQUIRE(s.getDenseToSparse().size() == 0);
 
     s.emplace(2, "Velocity");
