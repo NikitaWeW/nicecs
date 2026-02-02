@@ -89,6 +89,7 @@ namespace ecs
         std::vector<dense_type> mDense;
         std::vector<sparse_type> mDenseToSparse;
         std::vector<std::size_t> mSparse;
+        std::size_t mBegin;
 
         void setDenseIndex(sparse_type const &sparse, std::size_t index);
     public:
@@ -175,8 +176,8 @@ namespace ecs
         /// @brief The [sparse; dense] pair iterator.
         class iterator
         {
-            sparse_set *m_owner;
-            std::size_t m_index;
+            sparse_set *mOwner;
+            std::size_t mIndex;
             struct proxy 
             {
                 sparse_type first;
@@ -191,25 +192,25 @@ namespace ecs
             using pointer = void;
             using reference = value_type;
 
-            inline iterator() : m_owner(nullptr), m_index(0) {}
-            inline iterator(sparse_set *owner, std::size_t index) : m_owner(owner), m_index(index) {}
+            inline iterator() : mOwner(nullptr), mIndex(0) {}
+            inline iterator(sparse_set *owner, std::size_t index) : mOwner(owner), mIndex(index) {}
 
-            inline reference operator*() const { return {m_owner->mDenseToSparse[m_index], m_owner->mDense[m_index]}; }
+            inline reference operator*() const { return {mOwner->mDenseToSparse[mIndex], mOwner->mDense[mIndex]}; }
 
-            inline iterator &operator++() { ++m_index; return *this; }
-            inline iterator operator++(int) { iterator tmp = *this; ++m_index; return tmp; }
+            inline iterator &operator++() { ++mIndex; return *this; }
+            inline iterator operator++(int) { iterator tmp = *this; ++mIndex; return tmp; }
 
-            inline iterator &operator--() { --m_index; return *this; }
-            inline iterator operator--(int) { iterator tmp = *this; --m_index; return tmp; }
+            inline iterator &operator--() { --mIndex; return *this; }
+            inline iterator operator--(int) { iterator tmp = *this; --mIndex; return tmp; }
 
-            inline iterator &operator+=(difference_type n) { m_index += n; return *this; }
-            inline iterator operator+(difference_type n) const { return iterator(m_owner, m_index + n); }
-            inline iterator &operator-=(difference_type n) { m_index -= n; return *this; }
-            inline iterator operator-(difference_type n) const { return iterator(m_owner, m_index - n); }
+            inline iterator &operator+=(difference_type n) { mIndex += n; return *this; }
+            inline iterator operator+(difference_type n) const { return iterator(mOwner, mIndex + n); }
+            inline iterator &operator-=(difference_type n) { mIndex -= n; return *this; }
+            inline iterator operator-(difference_type n) const { return iterator(mOwner, mIndex - n); }
 
-            inline difference_type operator-(iterator const &other) const { return static_cast<difference_type>(m_index) - static_cast<difference_type>(other.m_index); }
+            inline difference_type operator-(iterator const &other) const { return static_cast<difference_type>(mIndex) - static_cast<difference_type>(other.mIndex); }
 
-            inline bool operator==(iterator const &o) const { return m_owner == o.m_owner && m_index == o.m_index; }
+            inline bool operator==(iterator const &o) const { return mOwner == o.mOwner && mIndex == o.mIndex; }
             inline bool operator!=(iterator const &o) const { return !(*this == o); }
 
             inline reference operator[](difference_type n) const { return *(*this + n); }
@@ -218,8 +219,8 @@ namespace ecs
         /// @copydoc iterator
         class const_iterator
         {
-            sparse_set const *m_owner;
-            std::size_t m_index;
+            sparse_set const *mOwner;
+            std::size_t mIndex;
             struct proxy 
             {
                 sparse_type first;
@@ -234,25 +235,25 @@ namespace ecs
             using pointer = void;
             using reference = value_type;
 
-            inline const_iterator() : m_owner(nullptr), m_index(0) {}
-            inline const_iterator(sparse_set const *owner, std::size_t index) : m_owner(owner), m_index(index) {}
+            inline const_iterator() : mOwner(nullptr), mIndex(0) {}
+            inline const_iterator(sparse_set const *owner, std::size_t index) : mOwner(owner), mIndex(index) {}
 
-            inline reference operator*() const { return {m_owner->mDenseToSparse[m_index], m_owner->mDense[m_index]}; }
+            inline reference operator*() const { return {mOwner->mDenseToSparse[mIndex], mOwner->mDense[mIndex]}; }
 
-            inline const_iterator &operator++() { ++m_index; return *this; }
-            inline const_iterator operator++(int) { const_iterator tmp = *this; ++m_index; return tmp; }
+            inline const_iterator &operator++() { ++mIndex; return *this; }
+            inline const_iterator operator++(int) { const_iterator tmp = *this; ++mIndex; return tmp; }
 
-            inline const_iterator &operator--() { --m_index; return *this; }
-            inline const_iterator operator--(int) { const_iterator tmp = *this; --m_index; return tmp; }
+            inline const_iterator &operator--() { --mIndex; return *this; }
+            inline const_iterator operator--(int) { const_iterator tmp = *this; --mIndex; return tmp; }
 
-            inline const_iterator &operator+=(difference_type n) { m_index += n; return *this; }
-            inline const_iterator operator+(difference_type n) const { return const_iterator(m_owner, m_index + n); }
-            inline const_iterator &operator-=(difference_type n) { m_index -= n; return *this; }
-            inline const_iterator operator-(difference_type n) const { return const_iterator(m_owner, m_index - n); }
+            inline const_iterator &operator+=(difference_type n) { mIndex += n; return *this; }
+            inline const_iterator operator+(difference_type n) const { return const_iterator(mOwner, mIndex + n); }
+            inline const_iterator &operator-=(difference_type n) { mIndex -= n; return *this; }
+            inline const_iterator operator-(difference_type n) const { return const_iterator(mOwner, mIndex - n); }
 
-            inline difference_type operator-(const_iterator const &other) const { return static_cast<difference_type>(m_index) - static_cast<difference_type>(other.m_index); }
+            inline difference_type operator-(const_iterator const &other) const { return static_cast<difference_type>(mIndex) - static_cast<difference_type>(other.mIndex); }
 
-            inline bool operator==(const_iterator const &o) const { return m_owner == o.m_owner && m_index == o.m_index; }
+            inline bool operator==(const_iterator const &o) const { return mOwner == o.mOwner && mIndex == o.mIndex; }
             inline bool operator!=(const_iterator const &o) const { return !(*this == o); }
 
             inline reference operator[](difference_type n) const { return *(*this + n); }
@@ -876,7 +877,7 @@ inline void ecs::impl::ComponentManager::registerComponent()
 template <typename component_t>
 inline ecs::component_id ecs::impl::ComponentManager::getComponentID()
 {
-    ECS_ASSERT(m_nextID < MAX_COMPONENTS, "too many components registered!");
+    ECS_ASSERT(mNextID < MAX_COMPONENTS, "too many components registered!");
     static const component_id id = mNextID++;
     return id;
 }
@@ -885,7 +886,7 @@ inline ecs::impl::ComponentArray<component_t> *ecs::impl::ComponentManager::getC
 {
     ECS_PROFILE;
     auto id = getComponentID<component_t>();
-    ECS_ASSERT(m_componentArrays.contains(id), "component not registered before use");
+    ECS_ASSERT(mComponentArrays.contains(id), "component not registered before use");
     return static_cast<impl::ComponentArray<component_t> *>(mComponentArrays.get(id).get());
 }
 template <typename component_t>
@@ -893,7 +894,7 @@ inline ecs::impl::ComponentArray<component_t> const *ecs::impl::ComponentManager
 {
     ECS_PROFILE;
     auto id = getComponentID<component_t>();
-    ECS_ASSERT(m_componentArrays.contains(id), "component not registered before use");
+    ECS_ASSERT(mComponentArrays.contains(id), "component not registered before use");
     return static_cast<impl::ComponentArray<component_t> const *>(mComponentArrays.get(id).get());
 }
 inline std::size_t ecs::impl::ComponentManager::getNextID()
@@ -1103,7 +1104,7 @@ inline void ecs::registry::merge(std::vector<entity> const &entities, registry c
         {
             if(signature.test(id))
             {
-                ECS_ASSERT(m_componentManager.getComponentArrays().contains(id), "unregistered component (bug?)");
+                ECS_ASSERT(mComponentManager.getComponentArrays().contains(id), "unregistered component (bug?)");
                 mComponentManager.getComponentArrays().get(id)->addEntity(entity);
             }
             else continue;
