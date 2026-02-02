@@ -235,7 +235,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
             REQUIRE(std::find(posView.begin(), posView.end(), e3) != posView.end());
             REQUIRE(std::find(posView.begin(), posView.end(), e4) == posView.end());
     
-            auto posOnly = reg.view<Position>(ecs::exclude_t<Velocity>{});
+            auto posOnly = reg.view<Position>(ecs::exclude<Velocity>{});
             REQUIRE(posOnly.size() == 2);
             REQUIRE(std::find(posOnly.begin(), posOnly.end(), e0) == posOnly.end());
             REQUIRE(std::find(posOnly.begin(), posOnly.end(), e1) != posOnly.end());
@@ -261,7 +261,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
             REQUIRE(std::find(posView.begin(), posView.end(), e3) != posView.end());
             REQUIRE(std::find(posView.begin(), posView.end(), e4) == posView.end());
     
-            auto posOnly = reg.viewAny<Position>(ecs::exclude_t<Velocity>{});
+            auto posOnly = reg.viewAny<Position>(ecs::exclude<Velocity>{});
             REQUIRE(posOnly.size() == 2);
             REQUIRE(std::find(posOnly.begin(), posOnly.end(), e0) == posOnly.end());
             REQUIRE(std::find(posOnly.begin(), posOnly.end(), e1) != posOnly.end());
@@ -319,7 +319,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
 
         reg.clear();
 
-        reg.merge(reg2.view<Position>(ecs::exclude_t<Velocity>{}), reg2);
+        reg.merge(reg2.view<Position>(ecs::exclude<Velocity>{}), reg2);
 
         REQUIRE(reg.size() == 2);
     }
@@ -402,7 +402,7 @@ TEST_CASE("Registry example", "[ecs][ecs::registry]")
         }
     }
 
-    auto view = registry.view<Position, Velocity>(ecs::exclude_t<Tag>{});
+    auto view = registry.view<Position, Velocity>(ecs::exclude<Tag>{});
 
     REQUIRE(view.size() == 4);
 

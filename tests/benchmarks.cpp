@@ -72,7 +72,7 @@ TEST_CASE("ecs::registry benchmarks", "[benchmark][ecs][ecs::registry]")
         auto const registry = make_registry();
         BENCHMARK("view")
         {
-            auto v = registry.view<Position, Velocity>(ecs::exclude_t<Tag, Health>{});
+            auto v = registry.view<Position, Velocity>(ecs::exclude<Tag, Health>{});
             return v.size();
         };
     }
