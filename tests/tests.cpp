@@ -95,24 +95,50 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]")
     s.emplace(1, "Position");
     s.emplace(5, "E");
     s.emplace(3, "C");
+    
+    {
+        std::vector<std::pair<std::size_t, std::string>> seen;
+        for(auto it = s.begin(); it != s.end(); ++it) {
+            auto [s, d] = *it;
+            seen.emplace_back(s, d);
+        }
+        REQUIRE(seen.size() == 6);
 
-    std::vector<std::pair<std::size_t, std::string>> seen;
-    for (auto it = s.begin(); it != s.end(); ++it) {
-        auto [s, d] = *it;
-        seen.emplace_back(s, d);
+        REQUIRE(seen[0].first == 2); REQUIRE(seen[0].second == "Velocity");
+        REQUIRE(seen[1].first == 4); REQUIRE(seen[1].second == "D");
+        REQUIRE(seen[2].first == 6); REQUIRE(seen[2].second == "F");
+        REQUIRE(seen[3].first == 1); REQUIRE(seen[3].second == "Position");
+        REQUIRE(seen[4].first == 5); REQUIRE(seen[4].second == "E");
+        REQUIRE(seen[5].first == 3); REQUIRE(seen[5].second == "C");
     }
-    REQUIRE(seen.size() == 6);
 
-    REQUIRE(seen[0].first == 2); REQUIRE(seen[0].second == "Velocity");
-    REQUIRE(seen[1].first == 4); REQUIRE(seen[1].second == "D");
-    REQUIRE(seen[2].first == 6); REQUIRE(seen[2].second == "F");
-    REQUIRE(seen[3].first == 1); REQUIRE(seen[3].second == "Position");
-    REQUIRE(seen[4].first == 5); REQUIRE(seen[4].second == "E");
-    REQUIRE(seen[5].first == 3); REQUIRE(seen[5].second == "C");
+    {
+        std::vector<std::string> seen;
+        for(auto it = s.denseBegin(); it != s.denseEnd(); ++it) {
+            it->append(" Appended");
+            seen.emplace_back(*it);
+        }
+        REQUIRE(seen.size() == 6);
 
-    for (auto it = s.begin(); it != s.end(); ++it) {
+        REQUIRE(seen[0] == "Velocity Appended");
+        REQUIRE(seen[1] == "D Appended");
+        REQUIRE(seen[2] == "F Appended");
+        REQUIRE(seen[3] == "Position Appended");
+        REQUIRE(seen[4] == "E Appended");
+        REQUIRE(seen[5] == "C Appended");
+    }
+
+    s.clear();
+    s.emplace(2, "Velocity");
+    s.emplace(4, "D");
+    s.emplace(6, "F");
+    s.emplace(1, "Position");
+    s.emplace(5, "E");
+    s.emplace(3, "C");
+
+    for(auto it = s.begin(); it != s.end(); ++it) {
         auto [s, d] = *it;
-        if (s == 3) d = "Cucumber";
+        if(s == 3) d = "Cucumber";
     }
     REQUIRE(s.get(3) == "Cucumber");
 

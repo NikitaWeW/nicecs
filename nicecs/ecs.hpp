@@ -164,13 +164,18 @@ namespace ecs
         /// @brief Clear the sparse set.
         void clear();
 
-        /// @brief The cbegin of the dense list.
+        /// @brief The begin of the dense list. Useful for making changes to the entire set.
+        typename std::vector<dense_type>::iterator denseBegin();
+        /// @brief The end of the dense list. Useful for making changes to the entire set.
+        typename std::vector<dense_type>::iterator denseEnd();
+
+        /// @brief The cbegin of the sparse set.
         const_iterator begin() const;
-        /// @brief The cend of the dense list.
+        /// @brief The cend of the sparse set.
         const_iterator end() const;
-        /// @brief The begin of the dense list.
+        /// @brief The begin of the sparse set.
         iterator begin();
-        /// @brief The end of the dense list.
+        /// @brief The end of the sparse set.
         iterator end();
     public:
         /// @brief The [sparse; dense] pair iterator.
@@ -178,13 +183,6 @@ namespace ecs
         {
             sparse_set *mOwner;
             std::size_t mIndex;
-            struct proxy 
-            {
-                sparse_type first;
-                dense_type *second;
-                proxy(sparse_type f, dense_type *s) : first(f), second(s) {}
-                std::pair<sparse_type, dense_type&> operator*() const { return {first, *second}; }
-            };
         public:
             using iterator_category = std::random_access_iterator_tag;
             using value_type = std::pair<sparse_type, dense_type&>;
@@ -221,13 +219,6 @@ namespace ecs
         {
             sparse_set const *mOwner;
             std::size_t mIndex;
-            struct proxy 
-            {
-                sparse_type first;
-                dense_type const *second;
-                proxy(sparse_type f, dense_type const *s) : first(f), second(s) {}
-                std::pair<sparse_type, dense_type&> operator*() const { return {first, *second}; }
-            };
         public:
             using iterator_category = std::random_access_iterator_tag;
             using value_type = std::pair<sparse_type, dense_type const &>;
@@ -754,6 +745,16 @@ template <typename dense_t>
 inline std::size_t ecs::sparse_set<dense_t>::size() const
 {
     return mDense.size();
+}
+template <typename dense_t>
+inline typename std::vector<dense_t>::iterator ecs::sparse_set<dense_t>::denseBegin()
+{
+    return mDense.begin();
+}
+template <typename dense_t>
+inline typename std::vector<dense_t>::iterator ecs::sparse_set<dense_t>::denseEnd()
+{
+    return mDense.end();
 }
 
 inline ecs::impl::EntityManager::EntityManager()
