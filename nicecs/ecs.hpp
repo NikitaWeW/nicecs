@@ -74,14 +74,19 @@ namespace ecs
     template<typename dense_t>
     class sparse_set
     {
+    private:
+        template<typename owner_t, typename reference_second_t>
+        class basic_iterator;
     public:
         /// @brief The type of the sparse index.
         using sparse_type = std::size_t;
         /// @brief The type of densely stored data.
         using dense_type = dense_t;
 
-        class iterator;
-        class const_iterator;
+        /// @copydoc basic_iterator
+        using iterator = basic_iterator<sparse_set, dense_type>;
+        /// @copydoc basic_iterator
+        using const_iterator = basic_iterator<sparse_set const, dense_type const>;
 
         /// @brief The sparse pointer that represents the empty index.
         static constexpr sparse_type null = std::numeric_limits<std::size_t>::max();
@@ -177,75 +182,40 @@ namespace ecs
         iterator begin();
         /// @brief The end of the sparse set.
         iterator end();
-    public:
+    private:
         /// @brief The [sparse; dense] pair iterator.
-        class iterator
+        template<typename owner_t, typename reference_second_t>
+        class basic_iterator
         {
-            sparse_set *mOwner;
+            owner_t *mOwner;
             std::size_t mIndex;
         public:
             using iterator_category = std::random_access_iterator_tag;
-            using value_type = std::pair<sparse_type, dense_type&>;
+            using value_type = std::pair<sparse_type, reference_second_t&>;
             using difference_type = std::ptrdiff_t;
             using pointer = void;
             using reference = value_type;
 
-            inline iterator() : mOwner(nullptr), mIndex(0) {}
-            inline iterator(sparse_set *owner, std::size_t index) : mOwner(owner), mIndex(index) {}
+            inline basic_iterator() : mOwner(nullptr), mIndex(0) {}
+            inline basic_iterator(owner_t *owner, std::size_t index) : mOwner(owner), mIndex(index) {}
 
             inline reference operator*() const { return {mOwner->mDenseToSparse[mIndex], mOwner->mDense[mIndex]}; }
 
-            inline iterator &operator++() { ++mIndex; return *this; }
-            inline iterator operator++(int) { iterator tmp = *this; ++mIndex; return tmp; }
+            inline basic_iterator &operator++() { ++mIndex; return *this; }
+            inline basic_iterator operator++(int) { basic_iterator tmp = *this; ++mIndex; return tmp; }
 
-            inline iterator &operator--() { --mIndex; return *this; }
-            inline iterator operator--(int) { iterator tmp = *this; --mIndex; return tmp; }
+            inline basic_iterator &operator--() { --mIndex; return *this; }
+            inline basic_iterator operator--(int) { basic_iterator tmp = *this; --mIndex; return tmp; }
 
-            inline iterator &operator+=(difference_type n) { mIndex += n; return *this; }
-            inline iterator operator+(difference_type n) const { return iterator(mOwner, mIndex + n); }
-            inline iterator &operator-=(difference_type n) { mIndex -= n; return *this; }
-            inline iterator operator-(difference_type n) const { return iterator(mOwner, mIndex - n); }
+            inline basic_iterator &operator+=(difference_type n) { mIndex += n; return *this; }
+            inline basic_iterator operator+(difference_type n) const { return basic_iterator(mOwner, mIndex + n); }
+            inline basic_iterator &operator-=(difference_type n) { mIndex -= n; return *this; }
+            inline basic_iterator operator-(difference_type n) const { return basic_iterator(mOwner, mIndex - n); }
 
-            inline difference_type operator-(iterator const &other) const { return static_cast<difference_type>(mIndex) - static_cast<difference_type>(other.mIndex); }
+            inline difference_type operator-(basic_iterator const &other) const { return static_cast<difference_type>(mIndex) - static_cast<difference_type>(other.mIndex); }
 
-            inline bool operator==(iterator const &o) const { return mOwner == o.mOwner && mIndex == o.mIndex; }
-            inline bool operator!=(iterator const &o) const { return !(*this == o); }
-
-            inline reference operator[](difference_type n) const { return *(*this + n); }
-        };
-        
-        /// @copydoc iterator
-        class const_iterator
-        {
-            sparse_set const *mOwner;
-            std::size_t mIndex;
-        public:
-            using iterator_category = std::random_access_iterator_tag;
-            using value_type = std::pair<sparse_type, dense_type const &>;
-            using difference_type = std::ptrdiff_t;
-            using pointer = void;
-            using reference = value_type;
-
-            inline const_iterator() : mOwner(nullptr), mIndex(0) {}
-            inline const_iterator(sparse_set const *owner, std::size_t index) : mOwner(owner), mIndex(index) {}
-
-            inline reference operator*() const { return {mOwner->mDenseToSparse[mIndex], mOwner->mDense[mIndex]}; }
-
-            inline const_iterator &operator++() { ++mIndex; return *this; }
-            inline const_iterator operator++(int) { const_iterator tmp = *this; ++mIndex; return tmp; }
-
-            inline const_iterator &operator--() { --mIndex; return *this; }
-            inline const_iterator operator--(int) { const_iterator tmp = *this; --mIndex; return tmp; }
-
-            inline const_iterator &operator+=(difference_type n) { mIndex += n; return *this; }
-            inline const_iterator operator+(difference_type n) const { return const_iterator(mOwner, mIndex + n); }
-            inline const_iterator &operator-=(difference_type n) { mIndex -= n; return *this; }
-            inline const_iterator operator-(difference_type n) const { return const_iterator(mOwner, mIndex - n); }
-
-            inline difference_type operator-(const_iterator const &other) const { return static_cast<difference_type>(mIndex) - static_cast<difference_type>(other.mIndex); }
-
-            inline bool operator==(const_iterator const &o) const { return mOwner == o.mOwner && mIndex == o.mIndex; }
-            inline bool operator!=(const_iterator const &o) const { return !(*this == o); }
+            inline bool operator==(basic_iterator const &o) const { return mOwner == o.mOwner && mIndex == o.mIndex; }
+            inline bool operator!=(basic_iterator const &o) const { return !(*this == o); }
 
             inline reference operator[](difference_type n) const { return *(*this + n); }
         };
