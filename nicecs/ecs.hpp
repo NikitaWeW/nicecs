@@ -95,7 +95,7 @@ namespace ecs
         /// @brief The sparse pointer that represents the empty index.
         static constexpr index_type null = std::numeric_limits<index_type>::max();
         /// @brief Number of indices in one sparse page.
-        static constexpr std::uint32_t PAGE_SIZE = 128;
+        static constexpr std::uint32_t PAGE_SIZE = 256;
     private:
         std::vector<dense_type> mDense;
         std::vector<sparse_type> mDenseToSparse;
