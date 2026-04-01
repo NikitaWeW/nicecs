@@ -44,28 +44,25 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]")
     REQUIRE(std::find(s.dense().begin(), s.dense().end(), "Position") != s.dense().end());
     REQUIRE(std::find(s.dense().begin(), s.dense().end(), "D") != s.dense().end());
 
-    for(size_t i = 0; i < s.sparse().size(); ++i)
     {
-        if(s.sparse()[i] != ecs::sparse_set<int>::null)
+        auto sparse = s.sparse();
+        for(auto i : sparse)
             s.erase(i);
     }
 
     REQUIRE(s.dense().empty());
     REQUIRE(s.empty());
     REQUIRE(s.size() == 0);
-    REQUIRE(s.getDenseToSparse().empty());
+    REQUIRE(s.sparse().empty());
 
     s.shrink_to_fit();
 
     REQUIRE(s.dense().capacity() == 0);
-    REQUIRE(s.getDenseToSparse().capacity() == 0);
     REQUIRE(s.sparse().capacity() == 0);
-    REQUIRE(s.sparse().empty());
 
     s.reserve(100);
 
     REQUIRE(s.dense().capacity() == 100);
-    REQUIRE(s.getDenseToSparse().capacity() == 100);
     REQUIRE(s.sparse().capacity() == 100);
 
     REQUIRE_THROWS_AS(s.get(0), AssertException);
@@ -81,13 +78,13 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]")
     s.emplace(6, "F");
 
     REQUIRE(s.dense().size() == 6);
-    REQUIRE(s.getDenseToSparse().size() == 6);
+    REQUIRE(s.sparse().size() == 6);
 
     s.clear();
 
     REQUIRE(s.dense().size() == 0);
     REQUIRE(s.sparse().size() == 0);
-    REQUIRE(s.getDenseToSparse().size() == 0);
+    REQUIRE(s.sparse().size() == 0);
 
     s.emplace(2, "Velocity");
     s.emplace(4, "D");
@@ -145,7 +142,7 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]")
     auto it = s.begin();
     REQUIRE((it + 1) != it);
     auto pair1 = *(it + 1);
-    REQUIRE(pair1.first == s.getDenseToSparse()[1]);
+    REQUIRE(pair1.first == s.sparse()[1]);
     auto pr = it[2];
     REQUIRE(pr.second == "F");
 
