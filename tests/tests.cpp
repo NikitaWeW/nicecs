@@ -325,12 +325,12 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         unsigned e0_found = 0, e1_found = 0, e2_found = 0, e3_found = 0, e4_found = 0, e5_found = 0;
         for(auto e : reg.view<>())
         {
-            e0_found += reg.same(e, e0) && reg.get<Position>(e) == Position{1, 0};
-            e1_found += reg.same(e, e1) && reg.get<Position>(e) == Position{0, 1} && reg.get<Velocity>(e) == Velocity{1, 1};
-            e2_found += reg.same(e, e2, reg2) && reg.get<Tag>(e).s == "Hello, World!";
-            e3_found += reg.same(e, e3, reg2) && reg.get<Position>(e) == Position{1, 1} && reg.get<Velocity>(e) == Velocity{0, 0};
-            e4_found += reg.same(e, e4, reg2) && reg.get<Position>(e) == Position{1, 2};
-            e5_found += reg.same(e, e5, reg2) && reg.get<Position>(e) == Position{4, 1} && reg.get<Health>(e).hp == 99;
+            e0_found += reg.getEntityManager().getSignature(e) == reg.getEntityManager().getSignature(e0) && reg.get<Position>(e) == Position{1, 0};
+            e1_found += reg.getEntityManager().getSignature(e) == reg.getEntityManager().getSignature(e1) && reg.get<Position>(e) == Position{0, 1} && reg.get<Velocity>(e) == Velocity{1, 1};
+            e2_found += reg.getEntityManager().getSignature(e) == reg2.getEntityManager().getSignature(e2) && reg.get<Tag>(e).s == "Hello, World!";
+            e3_found += reg.getEntityManager().getSignature(e) == reg2.getEntityManager().getSignature(e3) && reg.get<Position>(e) == Position{1, 1} && reg.get<Velocity>(e) == Velocity{0, 0};
+            e4_found += reg.getEntityManager().getSignature(e) == reg2.getEntityManager().getSignature(e4) && reg.get<Position>(e) == Position{1, 2};
+            e5_found += reg.getEntityManager().getSignature(e) == reg2.getEntityManager().getSignature(e5) && reg.get<Position>(e) == Position{4, 1} && reg.get<Health>(e).hp == 99;
         }
 
         REQUIRE(e0_found == 1);

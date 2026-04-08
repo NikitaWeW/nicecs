@@ -327,7 +327,9 @@ namespace impl
     class ComponentManager
     {
     private:
-        sparse_set<std::unique_ptr<IComponentArray>> mComponentArrays{};
+        // FIXME: Registering a component mutates mComponentArrays.
+        // Lazy component initialisation destroys const correctness and parallelizing per component storage access.
+        sparse_set<std::unique_ptr<IComponentArray>> mComponentArrays;
         inline static component_id mNextID = 0;
     public:
         /// @brief Get unique component ID used to index the signature bitset.
@@ -372,10 +374,7 @@ namespace impl
     /// A class to push around lists of types.
     /// @tparam Type List of types.
     template<typename... Type>
-    struct exclude 
-    {
-        explicit constexpr exclude() = default;
-    };
+    struct exclude {};
 
     /// @brief An ECS interface.
     /// Contains entities and their components.
@@ -401,7 +400,8 @@ namespace impl
         /// @tparam component_t The component type.
         /// @throws std::invalid_argument if the entity is not a valid identifier.
         /// @return True if the entity has the component, false otherwise.
-        template <typename component_t> bool has(entity const &entity) const;
+        template <typename component_t> 
+        bool has(entity const &entity) const;
 
         /// @brief Gets a component from a a valid entity.
         /// @param entity A valid entity identifier.
@@ -498,18 +498,17 @@ namespace impl
         /// Adds the entities and their components from the other registry to this registry.
         void merge(std::vector<entity> const &entities, registry const &other);
 
-        /// @brief Check if the entities from different registries have same components.
-        /// @param first,second The entities to compare.
-        /// @param secondRegistry The registry \p second entity belongs to.
-        /// @throws std::invalid_argument if the entity is not a valid identifier.
-        /// @return True if the signature of the first entity equals to the signature of the second, false otherwise.
-        bool same(entity const &first, entity const &second, registry const &secondRegistry);
+        /// @brief Get the component manager.
+        /// Use at your own risk.
+        impl::ComponentManager const &getComponentManager() const;
+        /// @copydoc getComponentManager
+        impl::ComponentManager &getComponentManager();
 
-        /// @brief Check if the entities from the same registry have same components.
-        /// @param first,second The entities to compare.
-        /// @throws std::invalid_argument if the entity is not a valid identifier.
-        /// @return True if the signature of the first entity equals to the signature of the second, false otherwise.
-        bool same(entity const &first, entity const &second);
+        /// @brief Get the component manager.
+        /// Use at your own risk.
+        impl::EntityManager const &getEntityManager() const;
+        /// @copydoc EntityManager
+        impl::EntityManager &getEntityManager();
     };
 } // namespace ecs
 
@@ -1092,20 +1091,6 @@ inline void ecs::registry::merge(std::vector<entity> const &entities, registry c
         }
     }
 }
-inline bool ecs::registry::same(entity const &first, entity const &second, registry const &secondRegistry)
-{
-    ECS_PROFILE;
-    if(!valid(first) || !secondRegistry.valid(second)) 
-        ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
-    return mEntityManager.getSignature(first) == secondRegistry.mEntityManager.getSignature(second);
-}
-inline bool ecs::registry::same(entity const &first, entity const &second)
-{
-    ECS_PROFILE;
-    if(!valid(first) || !valid(second)) 
-        ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
-    return mEntityManager.getSignature(first) == mEntityManager.getSignature(second);
-}
 template <typename... Include, typename... Exclude>
 inline std::vector<ecs::entity> ecs::registry::view(exclude<Exclude...>) const
 {
@@ -1146,5 +1131,9 @@ inline std::vector<ecs::entity> ecs::registry::viewAny(exclude<Exclude...> toExc
 
     return result;
 }
+inline ecs::impl::ComponentManager const &ecs::registry::getComponentManager() const { return mComponentManager; }
+inline ecs::impl::ComponentManager &ecs::registry::getComponentManager() { return mComponentManager; }
+inline ecs::impl::EntityManager const &ecs::registry::getEntityManager() const { return mEntityManager; }
+inline ecs::impl::EntityManager &ecs::registry::getEntityManager() { return mEntityManager; }
 
 /*! \endcond */
