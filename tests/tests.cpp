@@ -305,6 +305,31 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         REQUIRE(reg.viewAny<>().size() == 0);
     }
 
+    SECTION("copy")
+    {
+        ecs::registry reg2;
+        auto reg2e0 = reg2.create(Tag{"Hello, World!"});
+        auto reg2e1 = reg2.create(Position{1, 1}, Velocity{0, 0});
+        auto reg2e2 = reg2.create(Position{1, 2});
+        auto reg2e3 = reg2.create(Position{4, 1}, Health{99});
+
+        auto reg1e0 = reg.copy(reg2e0, reg2);
+        auto reg1e1 = reg.copy(reg2e1, reg2);
+        auto reg1e2 = reg.copy(reg2e2, reg2);
+        auto reg1e3 = reg.copy(reg2e3, reg2);
+
+        REQUIRE(reg.getEntityManager().getSignature(reg1e0) == reg2.getEntityManager().getSignature(reg2e0));
+        REQUIRE(reg.get<Tag>(reg1e0).s == "Hello, World!");
+        REQUIRE(reg.getEntityManager().getSignature(reg1e1) == reg2.getEntityManager().getSignature(reg2e1));
+        REQUIRE(reg.get<Position>(reg1e1) == Position{1, 1});
+        REQUIRE(reg.get<Velocity>(reg1e1) == Velocity{0, 0});
+        REQUIRE(reg.getEntityManager().getSignature(reg1e2) == reg2.getEntityManager().getSignature(reg2e2));
+        REQUIRE(reg.get<Position>(reg1e2) == Position{1, 2});
+        REQUIRE(reg.getEntityManager().getSignature(reg1e3) == reg2.getEntityManager().getSignature(reg2e3));
+        REQUIRE(reg.get<Position>(reg1e3) == Position{4, 1});
+        REQUIRE(reg.get<Health>(reg1e3).hp == 99);
+    }
+
     SECTION("merge")
     {
         ecs::registry reg2;
@@ -317,7 +342,8 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         auto e4 = reg2.create(Position{1, 2});
         auto e5 = reg2.create(Position{4, 1}, Health{99});
 
-        reg.merge(reg2);
+        for(auto e : reg2.view())
+            reg.copy(e, reg2);
 
         REQUIRE(reg.size() == 6);
         REQUIRE(reg.view<Position>().size() == 5);
@@ -342,7 +368,8 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
 
         reg.clear();
 
-        reg.merge(reg2.view<Position>(ecs::exclude<Velocity>{}), reg2);
+        for(auto e : reg2.view<Position>(ecs::exclude<Velocity>{}))
+            reg.copy(e, reg2);
 
         REQUIRE(reg.size() == 2);
     }

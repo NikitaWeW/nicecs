@@ -328,7 +328,7 @@ namespace impl
     {
     private:
         // FIXME: Registering a component mutates mComponentArrays.
-        // Lazy component initialisation destroys const correctness and parallelizing per component storage access.
+        // Lazy component initialization destroys const correctness and parallelizing per component storage access.
         sparse_set<std::unique_ptr<IComponentArray>> mComponentArrays;
         inline static component_id mNextID = 0;
     public:
@@ -483,20 +483,12 @@ namespace impl
         template<typename... May, typename... Exclude>
         std::vector<entity> viewAny(exclude<Exclude...> toExclude = exclude{}) const;
 
-        /// @brief Get a registry that merges two registries.
-        /// @param other The second registry.
-        /// @return Merged registry containing entities and components from both registries.
-        registry merged(registry const &other) const;
-
-        /// @brief Merge with the other registry.
-        /// @param other The registry to merge with.
-        /// Adds the entities and their components from the other registry to this registry.
-        void merge(registry const &other);
-
-        /// @brief Merge the entities of the other registry.
-        /// @param other The registry to merge with.
-        /// Adds the entities and their components from the other registry to this registry.
-        void merge(std::vector<entity> const &entities, registry const &other);
+        /// @brief Copy an entity from the other registry.
+        /// @param otherEntity The entity from @p other registry to copy.
+        /// @param other The registry to copy from.
+        /// @return The copied entity.
+        /// Adds the entity and its components from the other registry to this registry.
+        ecs::entity copy(entity const &otherEntity, registry const &other);
 
         /// @brief Get the component manager.
         /// Use at your own risk.
@@ -507,7 +499,7 @@ namespace impl
         /// @brief Get the component manager.
         /// Use at your own risk.
         impl::EntityManager const &getEntityManager() const;
-        /// @copydoc EntityManager
+        /// @copydoc getEntityManager
         impl::EntityManager &getEntityManager();
     };
 } // namespace ecs
@@ -1049,47 +1041,32 @@ inline std::size_t ecs::registry::size() const
     ECS_PROFILE;
     return mEntityManager.size();
 }
-inline ecs::registry ecs::registry::merged(ecs::registry const &other) const
+inline ecs::entity ecs::registry::copy(entity const &otherEntity, registry const &other)
 {
     ECS_PROFILE;
-    ecs::registry result;
-    result.merge(*this);
-    result.merge(other);
-    return result;
-}
-inline void ecs::registry::merge(ecs::registry const &other)
-{
-    ECS_PROFILE;
-    // View might be unnecessary, but it keeps the code dry.
-    merge(other.view<>(), other); 
-}
-inline void ecs::registry::merge(std::vector<entity> const &entities, registry const &other)
-{
-    ECS_PROFILE;
-    for(entity const &other_entity : entities)
+    auto signature = other.mEntityManager.getSignature(otherEntity);
+    for(std::size_t id = 0; id < impl::ComponentManager::getNextID(); ++id) 
     {
-        auto signature = other.mEntityManager.getSignature(other_entity);
-        for(std::size_t id = 0; id < impl::ComponentManager::getNextID(); ++id) 
-        {
-            if(!signature.test(id)) 
-                continue;
-            if(!mComponentManager.getComponentArrays().contains(id))
-                mComponentManager.getComponentArrays().emplace(id, other.mComponentManager.getComponentArrays().get(id)->cloneEmpty());
-        }
-
-        entity entity = mEntityManager.createEntity(signature);
-        for(std::size_t id = 0; id < impl::ComponentManager::getNextID(); ++id)
-        {
-            if(signature.test(id))
-            {
-                ECS_ASSERT(mComponentManager.getComponentArrays().contains(id), "unregistered component (bug?)");
-                mComponentManager.getComponentArrays().get(id)->addEntity(entity);
-            }
-            else continue;
-
-            mComponentManager.getComponentArrays().get(id)->copyEntityFrom(other.mComponentManager.getComponentArrays().get(id).get(), entity, other_entity);
-        }
+        if(!signature.test(id)) 
+            continue;
+        if(!mComponentManager.getComponentArrays().contains(id))
+            mComponentManager.getComponentArrays().emplace(id, other.mComponentManager.getComponentArrays().get(id)->cloneEmpty());
     }
+
+    entity entity = mEntityManager.createEntity(signature);
+    for(std::size_t id = 0; id < impl::ComponentManager::getNextID(); ++id)
+    {
+        if(signature.test(id))
+        {
+            ECS_ASSERT(mComponentManager.getComponentArrays().contains(id), "unregistered component (bug?)");
+            mComponentManager.getComponentArrays().get(id)->addEntity(entity);
+        }
+        else continue;
+
+        mComponentManager.getComponentArrays().get(id)->copyEntityFrom(other.mComponentManager.getComponentArrays().get(id).get(), entity, otherEntity);
+    }
+
+    return entity;
 }
 template <typename... Include, typename... Exclude>
 inline std::vector<ecs::entity> ecs::registry::view(exclude<Exclude...>) const

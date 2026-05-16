@@ -77,20 +77,12 @@ TEST_CASE("ecs::registry benchmarks", "[benchmark][ecs][ecs::registry]")
         };
     }
     {
-        auto const a = make_registry();
-        auto const b = make_registry();
-        BENCHMARK("merged")
-        {
-            return a.merged(b);
-        };
-    }
-    {
-        auto const a = make_registry();
+        auto a = make_registry();
         auto b = make_registry();
-        BENCHMARK("clear and merge")
+        auto const e = b.create<Position>();
+        BENCHMARK("copy")
         {
-            b.clear();
-            b.merge(a);
+            return a.copy(e, b);
         };
     }
     {
