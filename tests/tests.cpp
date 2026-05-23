@@ -1,9 +1,7 @@
 #include "catch2/catch_test_macros.hpp"
-struct AssertException {};
-#define ECS_ASSERT(x, msg) if(!(x)) { throw AssertException{}; }
+#include "types.hpp"
 #include "nicecs/ecs.hpp"
 #include "nicecs/ecs.hpp" // check if there are no odr issues
-#include "types.hpp"
 
 #include <vector>
 #include <set>
@@ -24,7 +22,7 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]")
     REQUIRE(s.size() == 6);
     REQUIRE_FALSE(s.empty());
 
-    REQUIRE_THROWS_AS(s.emplace(1), AssertException);
+    REQUIRE_THROWS_AS(s.emplace(1), EcsException);
 
     s.erase(2);
     REQUIRE(s.size() == 5);
@@ -65,8 +63,8 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]")
     REQUIRE(s.dense().capacity() == 100);
     REQUIRE(s.sparse().capacity() == 100);
 
-    REQUIRE_THROWS_AS(s.get(0), AssertException);
-    REQUIRE_THROWS_AS(s.erase(0), AssertException);
+    REQUIRE_THROWS_AS(s.get(0), EcsException);
+    REQUIRE_THROWS_AS(s.erase(0), EcsException);
     REQUIRE_NOTHROW(s[0]);
     s.erase(0);
 
@@ -199,8 +197,8 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         REQUIRE(reg.get<Velocity>(e2) == Velocity{1, 0});
 
         REQUIRE_FALSE(reg.valid(e3));
-        REQUIRE_THROWS_AS(reg.has<Position>(e3), std::invalid_argument);
-        REQUIRE_THROWS_AS(reg.get<Position>(e3), std::invalid_argument);
+        REQUIRE_THROWS_AS(reg.has<Position>(e3), EcsException);
+        REQUIRE_THROWS_AS(reg.get<Position>(e3), EcsException);
 
         REQUIRE(reg.valid(e4));
         REQUIRE_FALSE(reg.empty(e4));
@@ -238,7 +236,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         REQUIRE(reg.valid(e));
         REQUIRE_FALSE(reg.has<Position>(e));
         REQUIRE(reg.empty(e));
-        REQUIRE_THROWS_AS(reg.get<Position>(e), std::out_of_range);
+        REQUIRE_THROWS_AS(reg.get<Position>(e), EcsException);
     }
 
     SECTION("views")

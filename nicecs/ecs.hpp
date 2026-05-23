@@ -2,7 +2,7 @@
       ___  ___ ___ 
      / _ \/ __/ __|        Copyright (c) 2024 Nikita Martynau 
     |  __/ (__\__ \        https://opensource.org/license/mit 
-     \___|\___|___/ v1.5.7 https://github.com/nikitawew/nicecs
+     \___|\___|___/ v1.5.8 https://github.com/nikitawew/nicecs
 
 Thanks to this article: https://austinmorlan.com/posts/entity_component_system.
 Took a very little bit of inspiration from https://github.com/skypjack/entt.
@@ -23,7 +23,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vector>
 #include <array>
 #include <type_traits>
-#include <stdexcept>
 #include <limits>
 #include <unordered_map>
 #include <algorithm>
@@ -39,12 +38,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #define ECS_PROFILE
 #endif
 
+// Example of using nicecs with exceptions:
+// struct EcsException : std::logic_error { 
+//     EcsException() = delete;
+//     EcsException(char const *) = delete;
+//     inline EcsException(char const *msg, char const *file, int line) : logic_error(file + (":" + std::to_string(line)) + " " + msg) {}
+// };
+// #define ECS_ASSERT(x, msg) if(!static_cast<bool>(x)) { throw EcsException(msg, __FILE__, __LINE__); }
 #ifndef ECS_ASSERT
 #define ECS_ASSERT(x, msg) assert((x) && msg)
-#endif
-
-#ifndef ECS_THROW
-#define ECS_THROW(x) (throw (x))
 #endif
 
 #ifndef ECS_MAX_COMPONENTS
@@ -307,19 +309,19 @@ namespace impl
     class ComponentArray : public IComponentArray, public sparse_set<component_t>
     {
     public:
-        /// @copydoc ecs::icomponent_array::onEntityDestroyed
+        /// @copydoc ecs::impl::IComponentArray::onEntityDestroyed
         void onEntityDestroyed(entity const &entity) override;
         
-        /// @copydoc ecs::icomponent_array::copyEntityFrom
+        /// @copydoc ecs::impl::IComponentArray::copyEntityFrom
         void copyEntityFrom(IComponentArray const *other, entity const &to, entity const &from) override;
 
-        /// @copydoc ecs::icomponent_array::addEntity
+        /// @copydoc ecs::impl::IComponentArray::addEntity
         void addEntity(entity const &entity) override;
 
-        /// @copydoc ecs::icomponent_array::cloneEmpty
+        /// @copydoc ecs::impl::IComponentArray::cloneEmpty
         std::unique_ptr<IComponentArray> cloneEmpty() const override;
 
-        /// @copydoc ecs::icomponent_array::clone
+        /// @copydoc ecs::impl::IComponentArray::clone
         std::unique_ptr<IComponentArray> clone() const override;
     };
 
@@ -392,7 +394,7 @@ namespace impl
         registry &operator=(registry const &other);
         registry &operator=(registry &&other) noexcept;
 
-        /// @copydoc impl::entity_manager::valid
+        /// @copydoc impl::EntityManager::valid
         bool valid(entity const &entity) const;
 
         /// @brief Checks if a valid entity has a component.
@@ -586,7 +588,7 @@ template <class... Args>
 inline void ecs::sparse_set<dense_t>::emplace(sparse_type const &sparse, Args &&...args)
 {
     ECS_PROFILE;
-    ECS_ASSERT(getDenseIndex(sparse) == null, "element added to the same sparse index more than once!");
+    ECS_ASSERT(getDenseIndex(sparse) == null, "Element added to the same sparse index more than once");
 
     if constexpr(std::is_aggregate_v<dense_type> && (sizeof...(Args) != 0u || !std::is_default_constructible_v<dense_type>)) 
         mDense.emplace_back(dense_type{std::forward<Args>(args)...});
@@ -601,7 +603,7 @@ template <typename dense_t>
 inline void ecs::sparse_set<dense_t>::erase(sparse_type const &sparse)
 {
     ECS_PROFILE;
-    ECS_ASSERT(getDenseIndex(sparse) != null, "removing a non-existing element from a sparse index!");
+    ECS_ASSERT(getDenseIndex(sparse) != null, "Removing a non-existing element from a sparse index");
 
     std::size_t removedDenseIndex = getDenseIndex(sparse);
     std::size_t lastDenseIndex = mDense.size() - 1;
@@ -650,7 +652,7 @@ template <typename dense_t>
 inline typename ecs::sparse_set<dense_t>::dense_type const &ecs::sparse_set<dense_t>::get(sparse_type const &sparse) const
 {
     ECS_PROFILE;
-    ECS_ASSERT(getDenseIndex(sparse) != null, "getting a non-existing element from a sparse index!");
+    ECS_ASSERT(getDenseIndex(sparse) != null, "Getting a non-existing element from a sparse index");
 
     return mDense[getDenseIndex(sparse)];
 }
@@ -658,7 +660,7 @@ template <typename dense_t>
 inline typename ecs::sparse_set<dense_t>::dense_type &ecs::sparse_set<dense_t>::get(sparse_type const &sparse)
 {
     ECS_PROFILE;
-    ECS_ASSERT(getDenseIndex(sparse) != null, "getting a non-existing element from a sparse index!");
+    ECS_ASSERT(getDenseIndex(sparse) != null, "Getting a non-existing element from a sparse index");
 
     return mDense[getDenseIndex(sparse)];
 }
@@ -755,7 +757,7 @@ inline ecs::entity ecs::impl::EntityManager::createEntity(signature signature)
 inline void ecs::impl::EntityManager::destroyEntity(entity const &entity)
 {
     ECS_PROFILE;
-    ECS_ASSERT(valid(entity), "invalid entity identifier!");
+    ECS_ASSERT(valid(entity), "Invalid entity identifier");
     --mLivingEntitiesCount;
     mAvailableEntityIDs.push_back(entity);
 
@@ -769,7 +771,7 @@ inline void ecs::impl::EntityManager::destroyEntity(entity const &entity)
 inline void ecs::impl::EntityManager::setSignature(entity const &entity, signature signature)
 {
     ECS_PROFILE;
-    ECS_ASSERT(valid(entity), "invalid entity identifier!");
+    ECS_ASSERT(valid(entity), "Invalid entity identifier");
 
     auto &group = mEntityGroups[getSignature(entity)];
     group.erase(entity);
@@ -783,7 +785,7 @@ inline void ecs::impl::EntityManager::setSignature(entity const &entity, signatu
 }
 inline ecs::signature const &ecs::impl::EntityManager::getSignature(entity const &entity) const
 {
-    ECS_ASSERT(valid(entity), "invalid entity identifier!");
+    ECS_ASSERT(valid(entity), "Invalid entity identifier");
     
     return mSignatures.get(entity);
 }
@@ -811,9 +813,9 @@ template <typename component_t>
 inline void ecs::impl::ComponentArray<component_t>::copyEntityFrom(impl::IComponentArray const *other, entity const &to, entity const &from)
 {
     ECS_PROFILE;
-    ECS_ASSERT(other, "");
+    ECS_ASSERT(other, "Internal logic error");
     ecs::impl::ComponentArray<component_t> const *otherArray = static_cast<ecs::impl::ComponentArray<component_t> const *>(other);
-    ECS_ASSERT(this->contains(to) && otherArray->contains(from), "");
+    ECS_ASSERT(this->contains(to) && otherArray->contains(from), "Internal logic error");
     this->get(to) = otherArray->get(from);
 }
 template <typename component_t>
@@ -847,7 +849,7 @@ inline void ecs::impl::ComponentManager::registerComponent()
 template <typename component_t>
 inline ecs::component_id ecs::impl::ComponentManager::getComponentID()
 {
-    ECS_ASSERT(mNextID < MAX_COMPONENTS, "too many components registered!");
+    ECS_ASSERT(mNextID < MAX_COMPONENTS, "Too many components registered");
     static const component_id id = mNextID++;
     return id;
 }
@@ -856,7 +858,7 @@ inline ecs::impl::ComponentArray<component_t> *ecs::impl::ComponentManager::getC
 {
     ECS_PROFILE;
     auto id = getComponentID<component_t>();
-    ECS_ASSERT(mComponentArrays.contains(id), "component not registered before use");
+    ECS_ASSERT(mComponentArrays.contains(id), "Component not registered before use");
     return static_cast<impl::ComponentArray<component_t> *>(mComponentArrays.get(id).get());
 }
 template <typename component_t>
@@ -864,7 +866,7 @@ inline ecs::impl::ComponentArray<component_t> const *ecs::impl::ComponentManager
 {
     ECS_PROFILE;
     auto id = getComponentID<component_t>();
-    ECS_ASSERT(mComponentArrays.contains(id), "component not registered before use");
+    ECS_ASSERT(mComponentArrays.contains(id), "Component not registered before use");
     return static_cast<impl::ComponentArray<component_t> const *>(mComponentArrays.get(id).get());
 }
 inline std::size_t ecs::impl::ComponentManager::getNextID()
@@ -905,8 +907,7 @@ template <typename component_t>
 inline bool ecs::registry::has(entity const &entity) const
 { 
     ECS_PROFILE;
-    if(!valid(entity)) 
-        ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
+    ECS_ASSERT(valid(entity), "Invalid entity identifier");
     
     mComponentManager.registerComponent<component_t>();
     return mEntityManager.getSignature(entity).test(impl::ComponentManager::getComponentID<component_t>()); 
@@ -915,10 +916,8 @@ template <typename component_t>
 inline component_t &ecs::registry::get(entity const &entity) 
 {
     ECS_PROFILE;
-    if(!valid(entity)) 
-        ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
-    if(!has<component_t>(entity)) 
-        ECS_THROW(std::out_of_range{"component to get is not added!"});
+    ECS_ASSERT(valid(entity), "Invalid entity identifier");
+    ECS_ASSERT(has<component_t>(entity), "Component to get is not added");
     
     return mComponentManager.getComponentArray<component_t>()->get(entity);
 }
@@ -926,10 +925,8 @@ template <typename component_t>
 inline component_t const &ecs::registry::get(entity const &entity) const
 {
     ECS_PROFILE;
-    if(!valid(entity)) 
-        ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
-    if(!has<component_t>(entity)) 
-        ECS_THROW(std::out_of_range{"component to get is not added!"});
+    ECS_ASSERT(valid(entity), "Invalid entity identifier");
+    ECS_ASSERT(has<component_t>(entity), "Component to get is not added");
     
     return mComponentManager.getComponentArray<component_t>()->get(entity);
 }
@@ -961,10 +958,8 @@ template <typename component_t>
 inline void ecs::registry::remove(entity const &entity)
 {
     ECS_PROFILE;
-    if(!valid(entity)) 
-        ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
-    if(!has<component_t>(entity)) 
-        ECS_THROW(std::out_of_range{"component to remove is not added!"});
+    ECS_ASSERT(valid(entity), "Invalid entity identifier");
+    ECS_ASSERT(has<component_t>(entity), "Component to remove is not added");
     
     mEntityManager.setSignature(entity, signature{mEntityManager.getSignature(entity)}.set(impl::ComponentManager::getComponentID<component_t>(), false));
     mComponentManager.getComponentArray<component_t>()->erase(entity);
@@ -973,10 +968,8 @@ template <typename component_t, class... Args>
 inline void ecs::registry::emplace(entity const &entity, Args&&... args)
 {
     ECS_PROFILE;
-    if(!valid(entity)) 
-        ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
-    if(has<component_t>(entity)) 
-        ECS_THROW(std::invalid_argument{"component to emplace already added!"});
+    ECS_ASSERT(valid(entity), "Invalid entity identifier");
+    ECS_ASSERT(!has<component_t>(entity), "Component to emplace already added");
 
     mComponentManager.getComponentArray<component_t>()->emplace(entity, std::forward<Args>(args)...);
     mEntityManager.setSignature(entity, signature{mEntityManager.getSignature(entity)}.set(impl::ComponentManager::getComponentID<component_t>(), true));
@@ -1010,8 +1003,7 @@ inline bool ecs::registry::valid(entity const &entity) const
 inline void ecs::registry::destroy(ecs::entity const &entity)
 {
     ECS_PROFILE;
-    if(!valid(entity)) 
-        ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
+    ECS_ASSERT(valid(entity), "Invalid entity identifier");
 
     mEntityManager.destroyEntity(entity);
     mComponentManager.entityDestroyed(entity);
@@ -1019,8 +1011,7 @@ inline void ecs::registry::destroy(ecs::entity const &entity)
 inline bool ecs::registry::empty(entity const &entity) const
 {
     ECS_PROFILE;
-    if(!valid(entity)) 
-        ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
+    ECS_ASSERT(valid(entity), "Invalid entity identifier");
     return mEntityManager.getSignature(entity).none();
 }
 inline void ecs::registry::clear() 
@@ -1032,8 +1023,7 @@ inline void ecs::registry::clear()
 inline std::size_t ecs::registry::size(entity const &entity) const 
 {
     ECS_PROFILE;
-    if(!valid(entity))
-        ECS_THROW(std::invalid_argument{"invalid entity identifier!"});
+    ECS_ASSERT(valid(entity), "Invalid entity identifier");
     return mEntityManager.getSignature(entity).count();
 }
 inline std::size_t ecs::registry::size() const
@@ -1058,7 +1048,7 @@ inline ecs::entity ecs::registry::copy(entity const &otherEntity, registry const
     {
         if(signature.test(id))
         {
-            ECS_ASSERT(mComponentManager.getComponentArrays().contains(id), "unregistered component (bug?)");
+            ECS_ASSERT(mComponentManager.getComponentArrays().contains(id), "Unregistered component (internal logic error)");
             mComponentManager.getComponentArrays().get(id)->addEntity(entity);
         }
         else continue;

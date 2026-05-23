@@ -4,18 +4,17 @@ Actually, its just an EC (entity component) as the library provides no systems a
 
 - Single header (`ecs.hpp`), pretty small.
 - C++17, STL-only.
-- Simple API.
+- Simple interface.
 - Sparse set storage (ecs::sparse_set available for use).
 - Type safe component manipulation.
 
 ## Integration
 
 `nicecs/ecs.hpp` contains the entire library. The `ecs::registry` contains the api.
-The library works well with [cpm.cmake](https://github.com/cpm-cmake/CPM.cmake).
 
 ## Documentation
 Documentation is generated using doxygen. Simply run
-```
+```sh
 doxygen
 ```
 in the root folder.

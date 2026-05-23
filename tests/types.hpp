@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <stdexcept>
 
 // operators == are for testing only.
 
@@ -20,3 +21,10 @@ struct Tag {
 struct Health { 
     unsigned hp; 
 };
+
+struct EcsException : std::logic_error { 
+    EcsException() = delete;
+    EcsException(char const *) = delete;
+    inline EcsException(char const *msg, char const *file, int line) : logic_error(file + (":" + std::to_string(line)) + " " + msg) {}
+};
+#define ECS_ASSERT(x, msg) if(!static_cast<bool>(x)) { throw EcsException(msg, __FILE__, __LINE__); }
