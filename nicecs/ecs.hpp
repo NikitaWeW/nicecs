@@ -172,10 +172,11 @@ namespace ecs
         /// @brief Clear the sparse set.
         void clear();
 
-        /// @brief The begin of the dense list. Useful for making changes to the entire set.
-        typename std::vector<dense_type>::iterator denseBegin();
-        /// @brief The end of the dense list. Useful for making changes to the entire set.
-        typename std::vector<dense_type>::iterator denseEnd();
+        /// @brief Get the pointer pointing to the beginning of the dense list. 
+        /// Useful for making changes to the entire set.
+        dense_type *denseData();
+        /// @copydoc denseData
+        dense_type const *denseData() const;
 
         /// @brief The cbegin of the sparse set.
         const_iterator begin() const;
@@ -329,8 +330,6 @@ namespace impl
     class ComponentManager
     {
     private:
-        // FIXME: Registering a component mutates mComponentArrays.
-        // Lazy component initialization destroys const correctness and parallelizing per component storage access.
         sparse_set<std::unique_ptr<IComponentArray>> mComponentArrays;
         inline static component_id mNextID = 0;
     public:
@@ -349,10 +348,13 @@ namespace impl
         ~ComponentManager() = default;
 
         /// @brief Registers component.
+        /// @param array An optional component array.
         /// @tparam component_t The component type.
         /// This should be called for every component used. Multiple calls for the same component_t will do nothing.
+        /// FIXME: Registering a component mutates mComponentArrays.
+        /// Lazy component initialization destroys const correctness and parallelizing per component storage access.
         template <typename component_t> 
-        void registerComponent();
+        void registerComponent(std::unique_ptr<ecs::impl::IComponentArray> &&array = nullptr);
 
         /// @brief Notify component arrays that the entity is destroyed.
         /// @param entity A deleted entity identifier.
@@ -720,14 +722,14 @@ inline std::size_t ecs::sparse_set<dense_t>::size() const
     return mDense.size();
 }
 template <typename dense_t>
-inline typename std::vector<dense_t>::iterator ecs::sparse_set<dense_t>::denseBegin()
+inline dense_t *ecs::sparse_set<dense_t>::denseData()
 {
-    return mDense.begin();
+    return mDense.data();
 }
 template <typename dense_t>
-inline typename std::vector<dense_t>::iterator ecs::sparse_set<dense_t>::denseEnd()
+inline dense_t const *ecs::sparse_set<dense_t>::denseData() const
 {
-    return mDense.end();
+    return mDense.data();
 }
 
 inline ecs::impl::EntityManager::EntityManager()
@@ -839,12 +841,12 @@ inline std::unique_ptr<ecs::impl::IComponentArray> ecs::impl::ComponentArray<com
 }
 
 template <typename component_t>
-inline void ecs::impl::ComponentManager::registerComponent()
+inline void ecs::impl::ComponentManager::registerComponent(std::unique_ptr<ecs::impl::IComponentArray> &&array)
 {
     ECS_PROFILE;
     auto id = getComponentID<component_t>();
     if(!mComponentArrays.contains(id))
-        mComponentArrays.emplace(id, std::make_unique<impl::ComponentArray<component_t>>());
+        mComponentArrays.emplace(id, array ? std::move(array) : std::make_unique<impl::ComponentArray<component_t>>());
 }
 template <typename component_t>
 inline ecs::component_id ecs::impl::ComponentManager::getComponentID()
@@ -859,6 +861,8 @@ inline ecs::impl::ComponentArray<component_t> *ecs::impl::ComponentManager::getC
     ECS_PROFILE;
     auto id = getComponentID<component_t>();
     ECS_ASSERT(mComponentArrays.contains(id), "Component not registered before use");
+    if(!mComponentArrays.contains(id))
+        return nullptr;
     return static_cast<impl::ComponentArray<component_t> *>(mComponentArrays.get(id).get());
 }
 template <typename component_t>
@@ -867,6 +871,8 @@ inline ecs::impl::ComponentArray<component_t> const *ecs::impl::ComponentManager
     ECS_PROFILE;
     auto id = getComponentID<component_t>();
     ECS_ASSERT(mComponentArrays.contains(id), "Component not registered before use");
+    if(!mComponentArrays.contains(id))
+        return nullptr;
     return static_cast<impl::ComponentArray<component_t> const *>(mComponentArrays.get(id).get());
 }
 inline std::size_t ecs::impl::ComponentManager::getNextID()

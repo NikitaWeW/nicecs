@@ -109,7 +109,7 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]")
 
     {
         std::vector<std::string> seen;
-        for(auto it = s.denseBegin(); it != s.denseEnd(); ++it) {
+        for(auto it = s.denseData(); it != s.denseData() + s.size(); ++it) {
             it->append(" Appended");
             seen.emplace_back(*it);
         }
