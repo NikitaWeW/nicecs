@@ -96,17 +96,17 @@ namespace ecs
 
         /// @brief The sparse pointer that represents the empty index.
         static constexpr index_type null = std::numeric_limits<index_type>::max();
-        /// @brief Number of indices in one sparse page.
-        static constexpr std::uint32_t PAGE_SIZE = 256;
     private:
         std::vector<dense_type> mDense;
         std::vector<sparse_type> mDenseToSparse;
-        std::vector<std::unique_ptr<std::array<index_type, PAGE_SIZE>>> mSparse;
+        std::vector<std::vector<index_type>> mSparse;
+        std::uint32_t mPageSize = 256;
 
         void setDenseIndex(sparse_type const &sparse, index_type index);
     public:
         /// @param capacity The optional capacity to reserve.
-        sparse_set(std::size_t capacity = 10);
+        /// @param pageSize Number of indices in one sparse page. Bigger page size reduces fragmentation but increases potential memory waste.
+        sparse_set(std::size_t capacity = 10, std::uint32_t pageSize = 256);
         ~sparse_set() = default;
         sparse_set(sparse_set const &other);
         sparse_set(sparse_set &&other) noexcept;
@@ -281,6 +281,7 @@ namespace impl
     class IComponentArray 
     {
     public:
+        IComponentArray() = default;
         virtual ~IComponentArray() = default;
 
         /// @brief Notify the array that the entity is destroyed.
@@ -310,6 +311,11 @@ namespace impl
     class ComponentArray : public IComponentArray, public sparse_set<component_t>
     {
     public:
+        /// @brief The size of a component page in bytes.
+        static constexpr std::size_t PAGE_SIZE = 4096;
+
+        explicit ComponentArray();
+
         /// @copydoc ecs::impl::IComponentArray::onEntityDestroyed
         void onEntityDestroyed(entity const &entity) override;
         
@@ -514,34 +520,32 @@ template <typename dense_t>
 inline void ecs::sparse_set<dense_t>::setDenseIndex(sparse_type const &sparse, ecs::sparse_set<dense_t>::index_type index)
 {
     ECS_PROFILE;
-    auto pageIndex = sparse / PAGE_SIZE;
+    auto pageIndex = sparse / mPageSize;
     if(pageIndex >= mSparse.size())
         mSparse.resize(pageIndex + 1);
 
-    auto &pPage = mSparse[pageIndex];
-    if(pPage == nullptr)
-    {
-        pPage = std::make_unique<std::array<index_type, PAGE_SIZE>>();
-        pPage->fill(null);
-    }
+    auto &page = mSparse[pageIndex];
+    if(page.empty())
+        page = std::vector<index_type>(mPageSize, null);
 
-    (*pPage)[sparse % PAGE_SIZE] = index;
+    page[sparse % mPageSize] = index;
 }
 template <typename dense_t>
 inline typename ecs::sparse_set<dense_t>::index_type ecs::sparse_set<dense_t>::getDenseIndex(sparse_type const &sparse) const
 {
     ECS_PROFILE;
-    if(sparse / PAGE_SIZE >= mSparse.size()) 
+    auto pageIndex = sparse / mPageSize;
+    if(pageIndex >= mSparse.size()) 
         return null;
 
-    auto const &pPage = mSparse[sparse / PAGE_SIZE];
-    if(pPage == nullptr)
+    auto const &page = mSparse[pageIndex];
+    if(page.empty())
         return null;
 
-    return (*pPage)[sparse % PAGE_SIZE];
+    return page[sparse % mPageSize];
 }
 template <typename dense_t>
-inline ecs::sparse_set<dense_t>::sparse_set(std::size_t capacity)
+inline ecs::sparse_set<dense_t>::sparse_set(std::size_t capacity, std::uint32_t pageSize) : mPageSize(pageSize)
 {
     ECS_PROFILE;
     reserve(capacity);
@@ -567,10 +571,10 @@ inline ecs::sparse_set<dense_t> &ecs::sparse_set<dense_t>::operator=(sparse_set 
     mSparse.clear();
     for(auto const &otherPage : other.mSparse)
     {
-        if(otherPage != nullptr)
-            mSparse.emplace_back(std::make_unique<std::array<index_type, PAGE_SIZE>>(*otherPage));
+        if(!otherPage.empty())
+            mSparse.emplace_back(otherPage);
         else
-            mSparse.emplace_back(nullptr);
+            mSparse.emplace_back();
     }
 
     return *this;
@@ -636,7 +640,7 @@ inline void ecs::sparse_set<dense_t>::reserve(std::size_t newCapacity)
     ECS_PROFILE;
     mDense.reserve(newCapacity);
     mDenseToSparse.reserve(newCapacity);
-    mSparse.reserve((newCapacity + PAGE_SIZE - 1) / PAGE_SIZE);
+    mSparse.reserve((newCapacity + mPageSize - 1) / mPageSize);
 }
 template <typename dense_t>
 inline void ecs::sparse_set<dense_t>::shrink_to_fit()
@@ -647,7 +651,7 @@ inline void ecs::sparse_set<dense_t>::shrink_to_fit()
 
     auto maxIterator = std::max_element(mDenseToSparse.begin(), mDenseToSparse.end());
     sparse_type maxSparse = maxIterator != mDenseToSparse.end() ? *maxIterator + 1 : 0;
-    mSparse.resize((maxSparse + PAGE_SIZE - 1) / PAGE_SIZE);
+    mSparse.resize((maxSparse + mPageSize - 1) / mPageSize);
     mSparse.shrink_to_fit();
 }
 template <typename dense_t>
@@ -804,6 +808,8 @@ inline std::unordered_map<ecs::signature, ecs::sparse_set<ecs::entity>> const &e
     return mEntityGroups;
 } 
 
+template <typename component_t>
+ecs::impl::ComponentArray<component_t>::ComponentArray() : sparse_set<component_t>(10, (PAGE_SIZE + sizeof(component_t) - 1) / sizeof(component_t)) {}
 template <typename component_t>
 inline void ecs::impl::ComponentArray<component_t>::onEntityDestroyed(entity const &entity)
 {
