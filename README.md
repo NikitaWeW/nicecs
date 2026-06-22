@@ -2,7 +2,7 @@ Actually, its just an EC (entity component) as the library provides no systems a
 
 ## Features
 
-- Single header (`ecs.hpp`), pretty small.
+- Header only.
 - C++17, STL-only.
 - Sparse set storage (ecs::sparse_set available for use).
 
