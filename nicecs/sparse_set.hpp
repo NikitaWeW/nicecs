@@ -128,9 +128,7 @@ namespace ecs
 
         /// @brief Get the pointer pointing to the beginning of the dense list. 
         /// Useful for making changes to the entire set.
-        dense_type *denseData();
-        /// @copydoc denseData
-        dense_type const *denseData() const;
+        dense_type *pDense();
 
         /// @brief The cbegin of the sparse set.
         const_iterator begin() const;
@@ -394,12 +392,7 @@ inline std::size_t ecs::sparse_set<dense_t, allocator_t>::size() const
     return mDense.size();
 }
 template <typename dense_t, typename allocator_t>
-inline dense_t *ecs::sparse_set<dense_t, allocator_t>::denseData()
-{
-    return mDense.data();
-}
-template <typename dense_t, typename allocator_t>
-inline dense_t const *ecs::sparse_set<dense_t, allocator_t>::denseData() const
+inline dense_t *ecs::sparse_set<dense_t, allocator_t>::pDense()
 {
     return mDense.data();
 }
