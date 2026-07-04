@@ -68,9 +68,48 @@ namespace ecs
 
     /// @brief Used to track which components entity has. 
     /// As an example, if Transform has type 0, RigidBody has type 1, and Gravity has type 2, an entity that “has” those three components would have a signature of 0b111 (bits 0, 1, and 2 are set).
-    /// Important: signatures are uniform across registries.
-    /// TODO: If MAX_COMPONENTS becomes an issue, use std::vector<bool>
-    using signature = std::bitset<MAX_COMPONENTS>;
+    /// IMPORTANT: signatures are uniform across registries.
+    struct signature
+    {
+        // TODO: If component limit becomes an issue, make a dynamic bitset here
+        std::bitset<MAX_COMPONENTS> data;
+
+        // Element access
+        inline bool get(std::size_t position) const { return data.test(position); }
+        inline bool all() const { return data.all(); }
+        inline bool any() const { return data.any(); }
+        inline bool none() const { return data.none(); }
+        inline size_t count() const { return data.count(); }
+
+        // Modifiers (ony need a small subsection of all possible bit operations)
+        inline signature &set(std::size_t position, bool flag = true) { data.set(position, flag); return *this; }
+
+        inline signature &operator&=(signature const &rhs) { data &= rhs.data; return *this; }
+        inline signature &operator|=(signature const &rhs) { data |= rhs.data; return *this; }
+        inline signature operator&(signature const &rhs) const { return signature{data & rhs.data}; }
+        inline signature operator|(signature const &rhs) const { return signature{data | rhs.data}; }
+
+        // Comparison
+        bool operator==(signature const &rhs) const { return data == rhs.data; }
+        bool operator!=(signature const &rhs) const { return !(*this == rhs); }
+        
+        // Conversions
+        std::string to_string() const { return data.to_string(); }
+        unsigned long to_ulong() const { return data.to_ulong(); }
+        unsigned long long to_ullong() const { return data.to_ullong(); }
+    };
+
+
+    template<typename>
+    struct hash;
+    
+    // Fuck function objects
+    template<>
+    struct hash<ecs::signature> {
+        size_t operator()(ecs::signature const &signature) const {
+            return std::hash<decltype(ecs::signature::data)>{}(signature.data);
+        }
+    };
 
 namespace impl
 {
@@ -81,7 +120,7 @@ namespace impl
     {
     private:
         std::vector<entity> mAvailableEntityIDs;
-        std::unordered_map<signature, sparse_set<entity>> mEntityGroups;
+        std::unordered_map<signature, sparse_set<entity>, ecs::hash<signature>> mEntityGroups;
         std::uint32_t mLivingEntitiesCount = 0;
         sparse_set<signature> mSignatures;
         entity mNextID = 1;
@@ -110,7 +149,7 @@ namespace impl
 
         /// @brief Get entities of this manager.
         /// @return Get a map of the sparse sets of all the valid entities of this registry with their signatures as its key.
-        std::unordered_map<signature, sparse_set<entity>> const &getEntityGroups() const;
+        std::unordered_map<signature, sparse_set<entity>, ecs::hash<signature>> const &getEntityGroups() const;
 
         /// @brief Checks if an identifier refers to a valid entity.
         /// @param entity An identifier, either valid or not.
@@ -427,7 +466,7 @@ inline std::size_t ecs::impl::EntityManager::size() const
 {
     return mLivingEntitiesCount;
 }
-inline std::unordered_map<ecs::signature, ecs::sparse_set<ecs::entity>> const &ecs::impl::EntityManager::getEntityGroups() const
+inline std::unordered_map<ecs::signature, ecs::sparse_set<ecs::entity>, ecs::hash<ecs::signature>> const &ecs::impl::EntityManager::getEntityGroups() const
 {
     return mEntityGroups;
 } 
@@ -546,7 +585,7 @@ inline bool ecs::registry::has(entity const &entity) const
     ECS_ASSERT(valid(entity), "Invalid entity identifier");
     
     mComponentManager.registerComponent<component_t>();
-    return mEntityManager.getSignature(entity).test(impl::ComponentManager::getComponentID<component_t>()); 
+    return mEntityManager.getSignature(entity).get(impl::ComponentManager::getComponentID<component_t>()); 
 }
 template <typename component_t>
 inline component_t &ecs::registry::get(entity const &entity) 
@@ -673,7 +712,7 @@ inline ecs::entity ecs::registry::copy(entity const &otherEntity, registry const
     auto signature = other.mEntityManager.getSignature(otherEntity);
     for(std::size_t id = 0; id < impl::ComponentManager::getNextID(); ++id) 
     {
-        if(!signature.test(id)) 
+        if(!signature.get(id)) 
             continue;
         if(!mComponentManager.getComponentArrays().contains(id))
             mComponentManager.getComponentArrays().emplace(id, other.mComponentManager.getComponentArrays().get(id)->cloneEmpty());
@@ -682,7 +721,7 @@ inline ecs::entity ecs::registry::copy(entity const &otherEntity, registry const
     entity entity = mEntityManager.createEntity(signature);
     for(std::size_t id = 0; id < impl::ComponentManager::getNextID(); ++id)
     {
-        if(signature.test(id))
+        if(signature.get(id))
         {
             ECS_ASSERT(mComponentManager.getComponentArrays().contains(id), "Unregistered component (internal logic error)");
             mComponentManager.getComponentArrays().get(id)->addEntity(entity);
