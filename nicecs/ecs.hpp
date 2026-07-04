@@ -291,7 +291,7 @@ namespace impl
         /// @brief Checks if a valid entity has a component.
         /// @param entity A valid entity identifier.
         /// @tparam component_t The component type.
-        /// @throws std::invalid_argument if the entity is not a valid identifier.
+        /// @throws If the entity is not a valid identifier.
         /// @return True if the entity has the component, false otherwise.
         template <typename component_t> 
         bool has(entity const &entity) const;
@@ -299,8 +299,8 @@ namespace impl
         /// @brief Gets a component from a a valid entity.
         /// @param entity A valid entity identifier.
         /// @tparam component_t The component type.
-        /// @throws std::invalid_argument if the entity is not a valid identifier.
-        /// @throws std::out_of_range if the component is not added.
+        /// @throws If the entity is not a valid identifier.
+        /// @throws If the component is not added.
         /// @return The component lvalue reference.
         template <typename component_t> 
         component_t &get(entity const &entity);
@@ -310,22 +310,22 @@ namespace impl
 
         /// @brief Removes a component from a valid entity.
         /// @param entity A valid entity identifier.
-        /// @throws std::invalid_argument if the entity is not a valid identifier.
-        /// @throws std::out_of_range if the component is not added.
+        /// @throws If the entity is not a valid identifier.
+        /// @throws If the component is not added.
         /// @tparam component_t The component type.
         template <typename component_t> 
         void remove(entity const &entity);
         
         /// @copydoc impl::component_manager::emplace
-        /// @throws std::invalid_argument if the entity is not a valid identifier.
-        /// @throws std::invalid_argument if the component is already added.
+        /// @throws If the entity is not a valid identifier.
+        /// @throws If the component is already added.
         template <typename component_t, class... Args>
         void emplace(entity const &entity, Args&&... args);
 
         /// @brief Create an entity.
         /// @tparam Components_t Components (optional).
         /// @return Unique valid entity id.
-        /// @throws std::invalid_argument If the same component is added more than once.
+        /// @throws If the same component is added more than once.
         template <typename... Components_t> 
         entity create();
 
@@ -333,17 +333,17 @@ namespace impl
         /// @tparam Components_t Components (optional).
         /// @param components The components to move in.
         /// @return Unique valid entity id.
-        /// @throws std::invalid_argument If the same component is added more than once.
+        /// @throws If the same component is added more than once.
         template <typename... Components_t> 
         entity create(Components_t&&... components);
 
         /// @brief Destroys an entity and its components.
         /// @param entity A valid entity identifier.
-        /// @throws std::invalid_argument if the entity is not a valid identifier.
+        /// @throws If the entity is not a valid identifier.
         void destroy(entity const &entity);
 
         /// @brief Check if an entity has no components.
-        /// @throws std::invalid_argument if the entity is not a valid identifier.
+        /// @throws If the entity is not a valid identifier.
         /// @return True if the entity is empty, false otherwise.
         bool empty(entity const &entity) const;
 
@@ -352,7 +352,7 @@ namespace impl
         void clear();
 
         /// @brief Get the number of components in an entity.
-        /// @throws std::invalid_argument if the entity is not a valid identifier.
+        /// @throws If the entity is not a valid identifier.
         std::size_t size(entity const &entity) const;
 
         /// @brief Get the number of entities in a registry.

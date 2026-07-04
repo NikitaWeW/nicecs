@@ -68,14 +68,6 @@ int main()
 }
 ```
 
-## TODO
-
-- Better component management
-  - Runtime components. Maybe https://github.com/skypjack/entt/issues/23
-  - Maybe change `ecs::signature` to `std::vector<bool>`?
-  - Maybe separate `ecs::sparse_set` into its own header?
-  - Fix: registering a component mutates mComponentArrays (destroys const correctness and parallel access to different component arrays).
-
 ## Tests and benchmarks
 Build the cmake project in the tests directory:
 
