@@ -194,8 +194,10 @@ namespace impl
     class ComponentArray : public IComponentArray, public sparse_set<component_t>
     {
     public:
-        /// @brief The size of a component page in bytes.
-        static constexpr std::size_t PAGE_SIZE = 4096;
+        /// @brief The size of a component sparse page.
+        static constexpr std::size_t PAGE_SIZE = 32;
+        /// @brief The capacity to reserve in bytes.
+        static constexpr std::size_t CAPACITY = 256;
 
         explicit ComponentArray();
 
@@ -472,7 +474,7 @@ inline std::unordered_map<ecs::signature, ecs::sparse_set<ecs::entity>, ecs::has
 } 
 
 template <typename component_t>
-ecs::impl::ComponentArray<component_t>::ComponentArray() : sparse_set<component_t>(10, (PAGE_SIZE + sizeof(component_t) - 1) / sizeof(component_t)) {}
+ecs::impl::ComponentArray<component_t>::ComponentArray() : sparse_set<component_t>((CAPACITY + sizeof(component_t) - 1) / sizeof(component_t), PAGE_SIZE) {}
 template <typename component_t>
 inline void ecs::impl::ComponentArray<component_t>::onEntityDestroyed(entity const &entity)
 {

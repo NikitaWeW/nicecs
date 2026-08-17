@@ -14,9 +14,13 @@ FetchContent_Declare(
 message(STATUS "TESTS: Fetching Catch2...")
 FetchContent_MakeAvailable(Catch2)
 
-add_executable(tests tests.cpp benchmarks.cpp)
+add_executable(tests tests.cpp)
 target_include_directories(tests PRIVATE ..)
 target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
+
+add_executable(benchmarks benchmarks.cpp)
+target_include_directories(benchmarks PRIVATE ..)
+target_link_libraries(benchmarks PRIVATE Catch2::Catch2WithMain)
 
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(CTest)
