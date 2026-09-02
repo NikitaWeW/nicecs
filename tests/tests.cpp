@@ -178,33 +178,33 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         REQUIRE(reg.valid(e0));
         REQUIRE(reg.empty(e0));
         REQUIRE(reg.size(e0) == 0);
-        REQUIRE_FALSE(reg.has<Position>(e0));
-        REQUIRE_FALSE(reg.has<Velocity>(e0));
+        REQUIRE_FALSE(reg.contains<Position>(e0));
+        REQUIRE_FALSE(reg.contains<Velocity>(e0));
 
         REQUIRE(reg.valid(e1));
         REQUIRE_FALSE(reg.empty(e1));
         REQUIRE(reg.size(e1) == 1);
-        REQUIRE(reg.has<Position>(e1));
-        REQUIRE_FALSE(reg.has<Velocity>(e1));
+        REQUIRE(reg.contains<Position>(e1));
+        REQUIRE_FALSE(reg.contains<Velocity>(e1));
         REQUIRE(reg.get<Position>(e1) == Position{});
 
         REQUIRE(reg.valid(e2));
         REQUIRE_FALSE(reg.empty(e2));
         REQUIRE(reg.size(e2) == 2);
-        REQUIRE(reg.has<Position>(e2));
-        REQUIRE(reg.has<Velocity>(e2));
+        REQUIRE(reg.contains<Position>(e2));
+        REQUIRE(reg.contains<Velocity>(e2));
         REQUIRE(reg.get<Position>(e2) == Position{0.1f, 10});
         REQUIRE(reg.get<Velocity>(e2) == Velocity{1, 0});
 
         REQUIRE_FALSE(reg.valid(e3));
-        REQUIRE_THROWS_AS(reg.has<Position>(e3), EcsException);
+        REQUIRE_THROWS_AS(reg.contains<Position>(e3), EcsException);
         REQUIRE_THROWS_AS(reg.get<Position>(e3), EcsException);
 
         REQUIRE(reg.valid(e4));
         REQUIRE_FALSE(reg.empty(e4));
         REQUIRE(reg.size(e4) == 1);
-        REQUIRE(reg.has<Position>(e4));
-        REQUIRE_FALSE(reg.has<Velocity>(e4));
+        REQUIRE(reg.contains<Position>(e4));
+        REQUIRE_FALSE(reg.contains<Velocity>(e4));
         REQUIRE(reg.get<Position>(e4) == Position{4, 2});
         REQUIRE(copythis == Position{4, 2});
 
@@ -224,17 +224,17 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
     {
         ecs::entity e = reg.create();
         REQUIRE(reg.valid(e));
-        REQUIRE_FALSE(reg.has<Position>(e));
-        REQUIRE_FALSE(reg.has<Velocity>(e));
+        REQUIRE_FALSE(reg.contains<Position>(e));
+        REQUIRE_FALSE(reg.contains<Velocity>(e));
 
         reg.emplace<Position>(e, 0.0f, 0.0f);
         REQUIRE(reg.valid(e));
-        REQUIRE(reg.has<Position>(e));
+        REQUIRE(reg.contains<Position>(e));
         REQUIRE(reg.get<Position>(e) == Position{0.0f, 0.0f});
 
-        reg.remove<Position>(e);
+        reg.erase<Position>(e);
         REQUIRE(reg.valid(e));
-        REQUIRE_FALSE(reg.has<Position>(e));
+        REQUIRE_FALSE(reg.contains<Position>(e));
         REQUIRE(reg.empty(e));
         REQUIRE_THROWS_AS(reg.get<Position>(e), EcsException);
     }
@@ -379,7 +379,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         ecs::registry second = reg;
 
         REQUIRE(second.valid(e1));
-        REQUIRE(second.has<Health>(e1));
+        REQUIRE(second.contains<Health>(e1));
         CHECK(second.get<Health>(e1).hp == 42);
 
         second.get<Health>(e1).hp = 7;
@@ -419,15 +419,15 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         for(auto e : original_ids) 
         {
             REQUIRE(reg.valid(e));
-            REQUIRE(reg.has<Position>(e));
-            REQUIRE(reg.has<Health>(e));
+            REQUIRE(reg.contains<Position>(e));
+            REQUIRE(reg.contains<Health>(e));
         }
 
         for(auto e : copy_ids) 
         {
             REQUIRE(copy.valid(e));
-            REQUIRE(copy.has<Position>(e));
-            REQUIRE(copy.has<Health>(e));
+            REQUIRE(copy.contains<Position>(e));
+            REQUIRE(copy.contains<Health>(e));
         }
     }
 }

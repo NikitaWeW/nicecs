@@ -296,7 +296,7 @@ namespace impl
         /// @throws If the entity is not a valid identifier.
         /// @return True if the entity has the component, false otherwise.
         template <typename component_t> 
-        bool has(entity const &entity) const;
+        bool contains(entity const &entity) const;
 
         /// @brief Gets a component from a a valid entity.
         /// @param entity A valid entity identifier.
@@ -316,7 +316,7 @@ namespace impl
         /// @throws If the component is not added.
         /// @tparam component_t The component type.
         template <typename component_t> 
-        void remove(entity const &entity);
+        void erase(entity const &entity);
         
         /// @copydoc impl::component_manager::emplace
         /// @throws If the entity is not a valid identifier.
@@ -581,7 +581,7 @@ inline ecs::sparse_set<std::unique_ptr<ecs::impl::IComponentArray>> const &ecs::
 }
 
 template <typename component_t>
-inline bool ecs::registry::has(entity const &entity) const
+inline bool ecs::registry::contains(entity const &entity) const
 { 
     ECS_PROFILE;
     ECS_ASSERT(valid(entity), "Invalid entity identifier");
@@ -594,7 +594,7 @@ inline component_t &ecs::registry::get(entity const &entity)
 {
     ECS_PROFILE;
     ECS_ASSERT(valid(entity), "Invalid entity identifier");
-    ECS_ASSERT(has<component_t>(entity), "Component to get is not added");
+    ECS_ASSERT(contains<component_t>(entity), "Component to get is not added");
     
     return mComponentManager.getComponentArray<component_t>()->get(entity);
 }
@@ -603,7 +603,7 @@ inline component_t const &ecs::registry::get(entity const &entity) const
 {
     ECS_PROFILE;
     ECS_ASSERT(valid(entity), "Invalid entity identifier");
-    ECS_ASSERT(has<component_t>(entity), "Component to get is not added");
+    ECS_ASSERT(contains<component_t>(entity), "Component to get is not added");
     
     return mComponentManager.getComponentArray<component_t>()->get(entity);
 }
@@ -632,11 +632,11 @@ inline ecs::entity ecs::registry::create(Components_t &&...components)
     return entity;
 }
 template <typename component_t>
-inline void ecs::registry::remove(entity const &entity)
+inline void ecs::registry::erase(entity const &entity)
 {
     ECS_PROFILE;
     ECS_ASSERT(valid(entity), "Invalid entity identifier");
-    ECS_ASSERT(has<component_t>(entity), "Component to remove is not added");
+    ECS_ASSERT(contains<component_t>(entity), "Component to remove is not added");
     
     mEntityManager.setSignature(entity, signature{mEntityManager.getSignature(entity)}.set(impl::ComponentManager::getComponentID<component_t>(), false));
     mComponentManager.getComponentArray<component_t>()->erase(entity);
@@ -646,7 +646,7 @@ inline void ecs::registry::emplace(entity const &entity, Args&&... args)
 {
     ECS_PROFILE;
     ECS_ASSERT(valid(entity), "Invalid entity identifier");
-    ECS_ASSERT(!has<component_t>(entity), "Component to emplace already added");
+    ECS_ASSERT(!contains<component_t>(entity), "Component to emplace already added");
 
     mComponentManager.getComponentArray<component_t>()->emplace(entity, std::forward<Args>(args)...);
     mEntityManager.setSignature(entity, signature{mEntityManager.getSignature(entity)}.set(impl::ComponentManager::getComponentID<component_t>(), true));
