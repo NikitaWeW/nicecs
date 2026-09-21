@@ -745,7 +745,7 @@ inline std::vector<ecs::entity> ecs::registry::view(exclude<Exclude...>) const
     (excluded.set(impl::ComponentManager::getComponentID<Exclude>()), ...);
 
     std::vector<ecs::entity> result;
-    result.reserve(10);
+    result.reserve(mEntityManager.size());
 
     for(auto const &[signature, group] : mEntityManager.getEntityGroups())
     {
@@ -765,7 +765,7 @@ inline std::vector<ecs::entity> ecs::registry::viewAny(exclude<Exclude...> toExc
     (excluded.set(impl::ComponentManager::getComponentID<Exclude>()), ...);
 
     std::vector<ecs::entity> result;
-    result.reserve(10);
+    result.reserve(mEntityManager.size());
 
     for(auto const &[signature, group] : mEntityManager.getEntityGroups())
     {
