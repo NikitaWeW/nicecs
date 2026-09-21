@@ -8,8 +8,7 @@
 
 /*! \cond Doxygen_Suppress */
 
-TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]")
-{
+TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]") {
     ecs::sparse_set<std::string> s;
     REQUIRE(s.empty());
     REQUIRE(s.size() == 0);
@@ -32,7 +31,7 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]")
     REQUIRE(s.contains(4));
     REQUIRE(s.contains(5));
     REQUIRE(s.contains(6));
-    std::vector<std::string> expected1 = { "Position", "F", "C", "D", "E" };
+    std::vector<std::string> expected1 = {"Position", "F", "C", "D", "E"};
     REQUIRE(s.dense() == expected1);
 
     s.erase(5);
@@ -44,8 +43,7 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]")
 
     {
         auto sparse = s.sparse();
-        for(auto i : sparse)
-            s.erase(i);
+        for(auto i : sparse) s.erase(i);
     }
 
     REQUIRE(s.dense().empty());
@@ -90,7 +88,7 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]")
     s.emplace(1, "Position");
     s.emplace(5, "E");
     s.emplace(3, "C");
-    
+
     {
         std::vector<std::pair<std::size_t, std::string>> seen;
         for(auto it = s.begin(); it != s.end(); ++it) {
@@ -99,12 +97,18 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]")
         }
         REQUIRE(seen.size() == 6);
 
-        REQUIRE(seen[0].first == 2); REQUIRE(seen[0].second == "Velocity");
-        REQUIRE(seen[1].first == 4); REQUIRE(seen[1].second == "D");
-        REQUIRE(seen[2].first == 6); REQUIRE(seen[2].second == "F");
-        REQUIRE(seen[3].first == 1); REQUIRE(seen[3].second == "Position");
-        REQUIRE(seen[4].first == 5); REQUIRE(seen[4].second == "E");
-        REQUIRE(seen[5].first == 3); REQUIRE(seen[5].second == "C");
+        REQUIRE(seen[0].first == 2);
+        REQUIRE(seen[0].second == "Velocity");
+        REQUIRE(seen[1].first == 4);
+        REQUIRE(seen[1].second == "D");
+        REQUIRE(seen[2].first == 6);
+        REQUIRE(seen[2].second == "F");
+        REQUIRE(seen[3].first == 1);
+        REQUIRE(seen[3].second == "Position");
+        REQUIRE(seen[4].first == 5);
+        REQUIRE(seen[4].second == "E");
+        REQUIRE(seen[5].first == 3);
+        REQUIRE(seen[5].second == "C");
     }
 
     {
@@ -147,13 +151,12 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]")
     auto it2 = s.begin() + 3;
     REQUIRE((it2 - s.begin()) == 3);
 }
-TEST_CASE("emplacement of a aggregate type in the sparse set", "[ecs][ecs::sparse_set]")
-{
+TEST_CASE("emplacement of a aggregate type in the sparse set", "[ecs][ecs::sparse_set]") {
     ecs::sparse_set<Position> s;
     s.emplace(0, 0.0f, 0.0f);
     s.emplace(1, 0.1f, 0.1f);
     s.emplace(2, 0.2f, 0.2f);
-    
+
     REQUIRE(s.contains(0));
     REQUIRE(s.contains(1));
     REQUIRE(s.contains(2));
@@ -161,12 +164,10 @@ TEST_CASE("emplacement of a aggregate type in the sparse set", "[ecs][ecs::spars
     REQUIRE(s.get(1) == Position{0.1f, 0.1f});
     REQUIRE(s.get(2) == Position{0.2f, 0.2f});
 }
-TEST_CASE("Registry tests", "[ecs][ecs::registry]")
-{
+TEST_CASE("Registry tests", "[ecs][ecs::registry]") {
     ecs::registry reg;
 
-    SECTION("entity creation and destruction")
-    {
+    SECTION("entity creation and destruction") {
         ecs::entity e0 = reg.create();
         ecs::entity e1 = reg.create<Position>();
         ecs::entity e2 = reg.create<Position, Velocity>({0.1f, 10}, {1, 0});
@@ -211,7 +212,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         reg.destroy(e0);
         REQUIRE_FALSE(reg.valid(e0));
         REQUIRE(reg.size() == 3);
-        
+
         reg.clear();
         REQUIRE(reg.size() == 0);
         REQUIRE_FALSE(reg.valid(e0));
@@ -220,8 +221,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         REQUIRE_FALSE(reg.valid(e4));
     }
 
-    SECTION("component manipulation")
-    {
+    SECTION("component manipulation") {
         ecs::entity e = reg.create();
         REQUIRE(reg.valid(e));
         REQUIRE_FALSE(reg.contains<Position>(e));
@@ -239,8 +239,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         REQUIRE_THROWS_AS(reg.get<Position>(e), EcsException);
     }
 
-    SECTION("views")
-    {
+    SECTION("views") {
         auto e0 = reg.create();
         auto e1 = reg.create<Position>();
         auto e2 = reg.create<Position, Velocity>();
@@ -255,7 +254,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
             REQUIRE(std::find(posView.begin(), posView.end(), e2) != posView.end());
             REQUIRE(std::find(posView.begin(), posView.end(), e3) != posView.end());
             REQUIRE(std::find(posView.begin(), posView.end(), e4) == posView.end());
-    
+
             auto posOnly = reg.view<Position>(ecs::exclude<Velocity>{});
             REQUIRE(posOnly.size() == 2);
             REQUIRE(std::find(posOnly.begin(), posOnly.end(), e0) == posOnly.end());
@@ -263,7 +262,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
             REQUIRE(std::find(posOnly.begin(), posOnly.end(), e2) == posOnly.end());
             REQUIRE(std::find(posOnly.begin(), posOnly.end(), e3) != posOnly.end());
             REQUIRE(std::find(posOnly.begin(), posOnly.end(), e4) == posOnly.end());
-    
+
             auto velView = reg.view<Velocity>();
             REQUIRE(posOnly.size() == 2);
             REQUIRE(std::find(velView.begin(), velView.end(), e0) == velView.end());
@@ -281,7 +280,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
             REQUIRE(std::find(posView.begin(), posView.end(), e2) != posView.end());
             REQUIRE(std::find(posView.begin(), posView.end(), e3) != posView.end());
             REQUIRE(std::find(posView.begin(), posView.end(), e4) == posView.end());
-    
+
             auto posOnly = reg.viewAny<Position>(ecs::exclude<Velocity>{});
             REQUIRE(posOnly.size() == 2);
             REQUIRE(std::find(posOnly.begin(), posOnly.end(), e0) == posOnly.end());
@@ -289,7 +288,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
             REQUIRE(std::find(posOnly.begin(), posOnly.end(), e2) == posOnly.end());
             REQUIRE(std::find(posOnly.begin(), posOnly.end(), e3) != posOnly.end());
             REQUIRE(std::find(posOnly.begin(), posOnly.end(), e4) == posOnly.end());
-    
+
             auto velView = reg.viewAny<Position, Velocity>();
             REQUIRE(velView.size() == 4);
             REQUIRE(std::find(velView.begin(), velView.end(), e0) == velView.end());
@@ -303,8 +302,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         REQUIRE(reg.viewAny<>().size() == 0);
     }
 
-    SECTION("copy")
-    {
+    SECTION("copy") {
         ecs::registry reg2;
         auto reg2e0 = reg2.create(Tag{"Hello, World!"});
         auto reg2e1 = reg2.create(Position{1, 1}, Velocity{0, 0});
@@ -328,8 +326,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         REQUIRE(reg.get<Health>(reg1e3).hp == 99);
     }
 
-    SECTION("merge")
-    {
+    SECTION("merge") {
         ecs::registry reg2;
 
         auto e0 = reg.create(Position{1, 0});
@@ -340,21 +337,22 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         auto e4 = reg2.create(Position{1, 2});
         auto e5 = reg2.create(Position{4, 1}, Health{99});
 
-        for(auto e : reg2.view())
-            reg.copy(e, reg2);
+        for(auto e : reg2.view()) reg.copy(e, reg2);
 
         REQUIRE(reg.size() == 6);
         REQUIRE(reg.view<Position>().size() == 5);
 
         unsigned e0_found = 0, e1_found = 0, e2_found = 0, e3_found = 0, e4_found = 0, e5_found = 0;
-        for(auto e : reg.view<>())
-        {
+        for(auto e : reg.view<>()) {
             e0_found += reg.getEntityManager().getSignature(e) == reg.getEntityManager().getSignature(e0) && reg.get<Position>(e) == Position{1, 0};
-            e1_found += reg.getEntityManager().getSignature(e) == reg.getEntityManager().getSignature(e1) && reg.get<Position>(e) == Position{0, 1} && reg.get<Velocity>(e) == Velocity{1, 1};
+            e1_found += reg.getEntityManager().getSignature(e) == reg.getEntityManager().getSignature(e1) && reg.get<Position>(e) == Position{0, 1} &&
+                        reg.get<Velocity>(e) == Velocity{1, 1};
             e2_found += reg.getEntityManager().getSignature(e) == reg2.getEntityManager().getSignature(e2) && reg.get<Tag>(e).s == "Hello, World!";
-            e3_found += reg.getEntityManager().getSignature(e) == reg2.getEntityManager().getSignature(e3) && reg.get<Position>(e) == Position{1, 1} && reg.get<Velocity>(e) == Velocity{0, 0};
+            e3_found += reg.getEntityManager().getSignature(e) == reg2.getEntityManager().getSignature(e3) &&
+                        reg.get<Position>(e) == Position{1, 1} && reg.get<Velocity>(e) == Velocity{0, 0};
             e4_found += reg.getEntityManager().getSignature(e) == reg2.getEntityManager().getSignature(e4) && reg.get<Position>(e) == Position{1, 2};
-            e5_found += reg.getEntityManager().getSignature(e) == reg2.getEntityManager().getSignature(e5) && reg.get<Position>(e) == Position{4, 1} && reg.get<Health>(e).hp == 99;
+            e5_found += reg.getEntityManager().getSignature(e) == reg2.getEntityManager().getSignature(e5) &&
+                        reg.get<Position>(e) == Position{4, 1} && reg.get<Health>(e).hp == 99;
         }
 
         REQUIRE(e0_found == 1);
@@ -366,14 +364,12 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
 
         reg.clear();
 
-        for(auto e : reg2.view<Position>(ecs::exclude<Velocity>{}))
-            reg.copy(e, reg2);
+        for(auto e : reg2.view<Position>(ecs::exclude<Velocity>{})) reg.copy(e, reg2);
 
         REQUIRE(reg.size() == 2);
     }
 
-    SECTION("registry component copy semantics")
-    {
+    SECTION("registry component copy semantics") {
         auto e1 = reg.create<Health>(Health{42});
 
         ecs::registry second = reg;
@@ -386,13 +382,11 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
 
         REQUIRE(reg.get<Health>(e1).hp != 7);
     }
-    SECTION("registry entity copy semantics")
-    {
+    SECTION("registry entity copy semantics") {
         ecs::registry reg;
 
         std::vector<ecs::entity> original_ids;
-        for(int i = 0; i < 10; ++i) 
-        {
+        for(int i = 0; i < 10; ++i) {
             auto e = reg.create<Position, Health>(Position{float(i), float(i)}, Health{unsigned(i)});
             original_ids.push_back(e);
         }
@@ -402,29 +396,23 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
         ecs::registry copy = reg;
 
         std::vector<ecs::entity> copy_ids;
-        for(int i = 0; i < 10; ++i) 
-        {
-            auto e = copy.create<Position, Health>(Position{float(i+100), float(i+100)}, Health{unsigned(i)+100});
+        for(int i = 0; i < 10; ++i) {
+            auto e = copy.create<Position, Health>(Position{float(i + 100), float(i + 100)}, Health{unsigned(i) + 100});
             copy_ids.push_back(e);
         }
 
         REQUIRE(reg.size() == original_ids.size());
         REQUIRE(copy.size() == copy_ids.size() + original_ids.size());
 
-        for(auto e : copy_ids) 
-        {
-            REQUIRE(all_ids.find(e) == all_ids.end());
-        }
+        for(auto e : copy_ids) { REQUIRE(all_ids.find(e) == all_ids.end()); }
 
-        for(auto e : original_ids) 
-        {
+        for(auto e : original_ids) {
             REQUIRE(reg.valid(e));
             REQUIRE(reg.contains<Position>(e));
             REQUIRE(reg.contains<Health>(e));
         }
 
-        for(auto e : copy_ids) 
-        {
+        for(auto e : copy_ids) {
             REQUIRE(copy.valid(e));
             REQUIRE(copy.contains<Position>(e));
             REQUIRE(copy.contains<Health>(e));
@@ -432,30 +420,21 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]")
     }
 }
 
-TEST_CASE("Registry example", "[ecs][ecs::registry]")
-{
+TEST_CASE("Registry example", "[ecs][ecs::registry]") {
     ecs::registry registry;
 
-    for(auto i = 0u; i < 10u; ++i) 
-    {
+    for(auto i = 0u; i < 10u; ++i) {
         const auto entity = registry.create();
         registry.emplace<Position>(entity, i * 1.f, i * 1.f);
-        if(i % 2 == 0) 
-        { 
-            registry.emplace<Velocity>(entity, i * .1f, i * .1f); 
-        }
-        if(i == 8)
-        {
-            registry.emplace<Tag>(entity);
-        }
+        if(i % 2 == 0) { registry.emplace<Velocity>(entity, i * .1f, i * .1f); }
+        if(i == 8) { registry.emplace<Tag>(entity); }
     }
 
     auto view = registry.view<Position, Velocity>(ecs::exclude<Tag>{});
 
     REQUIRE(view.size() == 4);
 
-    for(auto const &e : view) 
-    {
+    for(auto const &e : view) {
         registry.get<Position>(e).x += registry.get<Velocity>(e).dx;
         registry.get<Position>(e).y += registry.get<Velocity>(e).dy;
     }

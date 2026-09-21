@@ -4,7 +4,11 @@ Actually, its just an EC (entity component) as the library provides no systems a
 
 - Header only.
 - C++17, STL-only.
-- Sparse set storage (ecs::sparse_set available for use).
+- Sparse set storage (ecs::sparse_set available for use in nicecs/sparse_set.hpp).
+
+---
+
+*Note: the git tags / releases might be outdated, just use latest commit*
 
 ## Documentation
 Documentation is generated using doxygen. Simply run
@@ -72,11 +76,9 @@ int main()
 Build the cmake project in the tests directory:
 
 ```
-cmake -S tests -B build/tests -D CMAKE_BUILD_TYPE=Release
-build/tests/tests
-# or
-cd build/tests
-ctest .
+cmake -S tests -B build -D CMAKE_BUILD_TYPE=Release
+build/tests
+build/benchmarks
 ```
 
 ## Thread safety
