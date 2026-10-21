@@ -24,12 +24,28 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #endif
 
 namespace ecs {
+
+template <typename T, bool CanCopy = std::is_copy_constructible_v<T>>
+struct sparse_set_copy_base {
+    sparse_set_copy_base() = default;
+    sparse_set_copy_base(sparse_set_copy_base const &) = default;
+    sparse_set_copy_base &operator=(sparse_set_copy_base const &) = default;
+};
+template <typename T>
+struct sparse_set_copy_base<T, false> {
+    sparse_set_copy_base() = default;
+    sparse_set_copy_base(sparse_set_copy_base const &) = delete;
+    sparse_set_copy_base &operator=(sparse_set_copy_base const &) = delete;
+};
+
 /// @brief A sparse set implementation.
 /// @tparam dense_t The type of densely stored data.
-template <typename dense_t, typename allocator_t = std::allocator<dense_t>> class sparse_set {
+template <typename dense_t, typename allocator_t = std::allocator<dense_t>>
+class sparse_set : public sparse_set_copy_base<dense_t> {
 private:
     // dry
-    template <typename owner_t, typename reference_second_t> class basic_iterator;
+    template <typename owner_t, typename reference_second_t>
+    class basic_iterator;
 public:
     /// @brief The type of the sparse index.
     using sparse_type = std::size_t;
@@ -67,7 +83,8 @@ public:
     /// @param sparse A sparse index.
     /// @param args Arguments forwarded to construct the new element.
     /// @throws std::invalid_argument If the sparse index already contains an element.
-    template <class... Args> void emplace(sparse_type const &sparse, Args &&...args);
+    template <class... Args>
+    void emplace(sparse_type const &sparse, Args &&...args);
 
     /// @brief Removes an element from a sparse index.
     /// @param sparse A sparse index.
@@ -135,7 +152,8 @@ public:
     iterator end();
 private:
     /// @brief The [sparse; dense] pair iterator.
-    template <typename owner_t, typename reference_second_t> class basic_iterator {
+    template <typename owner_t, typename reference_second_t>
+    class basic_iterator {
         owner_t *mOwner;
         std::size_t mIndex;
     public:
@@ -145,10 +163,14 @@ private:
         using pointer = void;
         using reference = value_type;
 
-        inline basic_iterator(): mOwner(nullptr), mIndex(0) { }
-        inline basic_iterator(owner_t *owner, std::size_t index): mOwner(owner), mIndex(index) { }
+        inline basic_iterator(): mOwner(nullptr), mIndex(0) {
+        }
+        inline basic_iterator(owner_t *owner, std::size_t index): mOwner(owner), mIndex(index) {
+        }
 
-        inline reference operator*() const { return {mOwner->mDenseToSparse[mIndex], mOwner->mDense[mIndex]}; }
+        inline reference operator*() const {
+            return { mOwner->mDenseToSparse[mIndex], mOwner->mDense[mIndex] };
+        }
 
         inline basic_iterator &operator++() {
             ++mIndex;
@@ -174,21 +196,31 @@ private:
             mIndex += n;
             return *this;
         }
-        inline basic_iterator operator+(difference_type n) const { return basic_iterator(mOwner, mIndex + n); }
+        inline basic_iterator operator+(difference_type n) const {
+            return basic_iterator(mOwner, mIndex + n);
+        }
         inline basic_iterator &operator-=(difference_type n) {
             mIndex -= n;
             return *this;
         }
-        inline basic_iterator operator-(difference_type n) const { return basic_iterator(mOwner, mIndex - n); }
+        inline basic_iterator operator-(difference_type n) const {
+            return basic_iterator(mOwner, mIndex - n);
+        }
 
         inline difference_type operator-(basic_iterator const &other) const {
             return static_cast<difference_type>(mIndex) - static_cast<difference_type>(other.mIndex);
         }
 
-        inline bool operator==(basic_iterator const &o) const { return mOwner == o.mOwner && mIndex == o.mIndex; }
-        inline bool operator!=(basic_iterator const &o) const { return !(*this == o); }
+        inline bool operator==(basic_iterator const &o) const {
+            return mOwner == o.mOwner && mIndex == o.mIndex;
+        }
+        inline bool operator!=(basic_iterator const &o) const {
+            return !(*this == o);
+        }
 
-        inline reference operator[](difference_type n) const { return *(*this + n); }
+        inline reference operator[](difference_type n) const {
+            return *(*this + n);
+        }
     };
 };
 
@@ -200,10 +232,12 @@ template <typename dense_t, typename allocator_t>
 inline void ecs::sparse_set<dense_t, allocator_t>::setDenseIndex(sparse_type const &sparse, ecs::sparse_set<dense_t, allocator_t>::index_type index) {
     ECS_PROFILE;
     auto pageIndex = sparse / mPageSize;
-    if(pageIndex >= mSparse.size()) mSparse.resize(pageIndex + 1);
+    if(pageIndex >= mSparse.size())
+        mSparse.resize(pageIndex + 1);
 
     auto &page = mSparse[pageIndex];
-    if(page.empty()) page = std::vector<index_type>(mPageSize, null);
+    if(page.empty())
+        page = std::vector<index_type>(mPageSize, null);
 
     page[sparse % mPageSize] = index;
 }
@@ -212,10 +246,12 @@ inline typename ecs::sparse_set<dense_t, allocator_t>::index_type
 ecs::sparse_set<dense_t, allocator_t>::getDenseIndex(sparse_type const &sparse) const {
     ECS_PROFILE;
     auto pageIndex = sparse / mPageSize;
-    if(pageIndex >= mSparse.size()) return null;
+    if(pageIndex >= mSparse.size())
+        return null;
 
     auto const &page = mSparse[pageIndex];
-    if(page.empty()) return null;
+    if(page.empty())
+        return null;
 
     return page[sparse % mPageSize];
 }
@@ -224,11 +260,13 @@ inline ecs::sparse_set<dense_t, allocator_t>::sparse_set(std::size_t capacity, s
     ECS_PROFILE;
     reserve(capacity);
 }
-template <typename dense_t, typename allocator_t> inline ecs::sparse_set<dense_t, allocator_t>::sparse_set(sparse_set const &other) {
+template <typename dense_t, typename allocator_t>
+inline ecs::sparse_set<dense_t, allocator_t>::sparse_set(sparse_set const &other) {
     ECS_PROFILE;
     *this = other;
 }
-template <typename dense_t, typename allocator_t> inline ecs::sparse_set<dense_t, allocator_t>::sparse_set(sparse_set &&other) noexcept {
+template <typename dense_t, typename allocator_t>
+inline ecs::sparse_set<dense_t, allocator_t>::sparse_set(sparse_set &&other) noexcept {
     *this = std::move(other);
 }
 template <typename dense_t, typename allocator_t>
@@ -239,8 +277,10 @@ inline ecs::sparse_set<dense_t, allocator_t> &ecs::sparse_set<dense_t, allocator
 
     mSparse.clear();
     for(auto const &otherPage : other.mSparse) {
-        if(!otherPage.empty()) mSparse.emplace_back(otherPage);
-        else mSparse.emplace_back();
+        if(!otherPage.empty())
+            mSparse.emplace_back(otherPage);
+        else
+            mSparse.emplace_back();
     }
 
     return *this;
@@ -261,14 +301,16 @@ inline void ecs::sparse_set<dense_t, allocator_t>::emplace(sparse_type const &sp
     ECS_ASSERT(getDenseIndex(sparse) == null, "Element added to the same sparse index more than once");
 
     if constexpr(std::is_aggregate_v<dense_type> && (sizeof...(Args) != 0u || !std::is_default_constructible_v<dense_type>) )
-        mDense.emplace_back(dense_type{std::forward<Args>(args)...});
-    else mDense.emplace_back(std::forward<Args>(args)...);
+        mDense.emplace_back(dense_type{ std::forward<Args>(args)... });
+    else
+        mDense.emplace_back(std::forward<Args>(args)...);
 
     std::size_t index = mDense.size() - 1;
     setDenseIndex(sparse, index);
     mDenseToSparse.emplace_back(sparse);
 }
-template <typename dense_t, typename allocator_t> inline void ecs::sparse_set<dense_t, allocator_t>::erase(sparse_type const &sparse) {
+template <typename dense_t, typename allocator_t>
+inline void ecs::sparse_set<dense_t, allocator_t>::erase(sparse_type const &sparse) {
     ECS_PROFILE;
     ECS_ASSERT(getDenseIndex(sparse) != null, "Removing a non-existing element from a sparse index");
 
@@ -288,17 +330,20 @@ template <typename dense_t, typename allocator_t> inline void ecs::sparse_set<de
     mDense.pop_back();
     mDenseToSparse.pop_back();
 }
-template <typename dense_t, typename allocator_t> inline bool ecs::sparse_set<dense_t, allocator_t>::contains(sparse_type const &sparse) const {
+template <typename dense_t, typename allocator_t>
+inline bool ecs::sparse_set<dense_t, allocator_t>::contains(sparse_type const &sparse) const {
     ECS_PROFILE;
     return getDenseIndex(sparse) != null;
 }
-template <typename dense_t, typename allocator_t> inline void ecs::sparse_set<dense_t, allocator_t>::reserve(std::size_t newCapacity) {
+template <typename dense_t, typename allocator_t>
+inline void ecs::sparse_set<dense_t, allocator_t>::reserve(std::size_t newCapacity) {
     ECS_PROFILE;
     mDense.reserve(newCapacity);
     mDenseToSparse.reserve(newCapacity);
     mSparse.reserve((newCapacity + mPageSize - 1) / mPageSize);
 }
-template <typename dense_t, typename allocator_t> inline void ecs::sparse_set<dense_t, allocator_t>::shrink_to_fit() {
+template <typename dense_t, typename allocator_t>
+inline void ecs::sparse_set<dense_t, allocator_t>::shrink_to_fit() {
     ECS_PROFILE;
     mDense.shrink_to_fit();
     mDenseToSparse.shrink_to_fit();
@@ -324,7 +369,8 @@ inline typename ecs::sparse_set<dense_t, allocator_t>::dense_type &ecs::sparse_s
 }
 template <typename dense_t, typename allocator_t>
 inline typename ecs::sparse_set<dense_t, allocator_t>::dense_type &ecs::sparse_set<dense_t, allocator_t>::operator[](sparse_type const &sparse) {
-    if(!contains(sparse)) emplace(sparse);
+    if(!contains(sparse))
+        emplace(sparse);
     return get(sparse);
 }
 template <typename dense_t, typename allocator_t>
@@ -335,7 +381,8 @@ template <typename dense_t, typename allocator_t>
 inline std::vector<typename ecs::sparse_set<dense_t, allocator_t>::sparse_type> const &ecs::sparse_set<dense_t, allocator_t>::sparse() const {
     return mDenseToSparse;
 }
-template <typename dense_t, typename allocator_t> inline void ecs::sparse_set<dense_t, allocator_t>::clear() {
+template <typename dense_t, typename allocator_t>
+inline void ecs::sparse_set<dense_t, allocator_t>::clear() {
     ECS_PROFILE;
     mDense.clear();
     mSparse.clear();
@@ -343,20 +390,29 @@ template <typename dense_t, typename allocator_t> inline void ecs::sparse_set<de
 }
 template <typename dense_t, typename allocator_t>
 inline typename ecs::sparse_set<dense_t, allocator_t>::const_iterator ecs::sparse_set<dense_t, allocator_t>::begin() const {
-    return {this, 0};
+    return { this, 0 };
 }
 template <typename dense_t, typename allocator_t>
 inline typename ecs::sparse_set<dense_t, allocator_t>::const_iterator ecs::sparse_set<dense_t, allocator_t>::end() const {
-    return {this, mDense.size()};
+    return { this, mDense.size() };
 }
 template <typename dense_t, typename allocator_t>
 inline typename ecs::sparse_set<dense_t, allocator_t>::iterator ecs::sparse_set<dense_t, allocator_t>::begin() {
-    return {this, 0};
+    return { this, 0 };
 }
 template <typename dense_t, typename allocator_t>
 inline typename ecs::sparse_set<dense_t, allocator_t>::iterator ecs::sparse_set<dense_t, allocator_t>::end() {
-    return {this, mDense.size()};
+    return { this, mDense.size() };
 }
-template <typename dense_t, typename allocator_t> inline bool ecs::sparse_set<dense_t, allocator_t>::empty() const { return mDense.empty(); }
-template <typename dense_t, typename allocator_t> inline std::size_t ecs::sparse_set<dense_t, allocator_t>::size() const { return mDense.size(); }
-template <typename dense_t, typename allocator_t> inline dense_t *ecs::sparse_set<dense_t, allocator_t>::pDense() { return mDense.data(); }
+template <typename dense_t, typename allocator_t>
+inline bool ecs::sparse_set<dense_t, allocator_t>::empty() const {
+    return mDense.empty();
+}
+template <typename dense_t, typename allocator_t>
+inline std::size_t ecs::sparse_set<dense_t, allocator_t>::size() const {
+    return mDense.size();
+}
+template <typename dense_t, typename allocator_t>
+inline dense_t *ecs::sparse_set<dense_t, allocator_t>::pDense() {
+    return mDense.data();
+}

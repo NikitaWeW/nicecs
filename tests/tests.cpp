@@ -31,7 +31,7 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]") {
     REQUIRE(s.contains(4));
     REQUIRE(s.contains(5));
     REQUIRE(s.contains(6));
-    std::vector<std::string> expected1 = {"Position", "F", "C", "D", "E"};
+    std::vector<std::string> expected1 = { "Position", "F", "C", "D", "E" };
     REQUIRE(s.dense() == expected1);
 
     s.erase(5);
@@ -43,7 +43,8 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]") {
 
     {
         auto sparse = s.sparse();
-        for(auto i : sparse) s.erase(i);
+        for(auto i : sparse)
+            s.erase(i);
     }
 
     REQUIRE(s.dense().empty());
@@ -137,7 +138,8 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]") {
 
     for(auto it = s.begin(); it != s.end(); ++it) {
         auto [s, d] = *it;
-        if(s == 3) d = "Cucumber";
+        if(s == 3)
+            d = "Cucumber";
     }
     REQUIRE(s.get(3) == "Cucumber");
 
@@ -151,7 +153,7 @@ TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]") {
     auto it2 = s.begin() + 3;
     REQUIRE((it2 - s.begin()) == 3);
 }
-TEST_CASE("emplacement of a aggregate type in the sparse set", "[ecs][ecs::sparse_set]") {
+TEST_CASE("Emplacement of a aggregate type in the sparse set", "[ecs][ecs::sparse_set]") {
     ecs::sparse_set<Position> s;
     s.emplace(0, 0.0f, 0.0f);
     s.emplace(1, 0.1f, 0.1f);
@@ -160,9 +162,38 @@ TEST_CASE("emplacement of a aggregate type in the sparse set", "[ecs][ecs::spars
     REQUIRE(s.contains(0));
     REQUIRE(s.contains(1));
     REQUIRE(s.contains(2));
-    REQUIRE(s.get(0) == Position{0.0f, 0.0f});
-    REQUIRE(s.get(1) == Position{0.1f, 0.1f});
-    REQUIRE(s.get(2) == Position{0.2f, 0.2f});
+    REQUIRE(s.get(0) == Position{ 0.0f, 0.0f });
+    REQUIRE(s.get(1) == Position{ 0.1f, 0.1f });
+    REQUIRE(s.get(2) == Position{ 0.2f, 0.2f });
+}
+TEST_CASE("Move only types") {
+    static_assert(!std::is_copy_constructible_v<MoveOnly>);
+
+    ecs::sparse_set<MoveOnly> s; // Does not compile
+    s.emplace(0, 4);
+    s.emplace(1, 1);
+    s.emplace(2, 5);
+
+
+    std::vector<MoveOnly> v; // Compiles
+    v.emplace_back(4);
+    v.emplace_back(1);
+    v.emplace_back(5);
+
+
+    ecs::registry r;
+    auto e = r.create<MoveOnly>(); // Does not compile
+    r.get<MoveOnly>(e);
+    r.erase<MoveOnly>(e);
+    r.emplace<MoveOnly>(e, 1);
+    REQUIRE(r.contains<MoveOnly>(e));
+    REQUIRE(r.get<MoveOnly>(e).val == 1);
+    r.emplace<Position>(e);
+
+    ecs::registry r2;
+    auto e2 = r2.copy(e, r);
+    REQUIRE(r2.contains<MoveOnly>(e2));
+    REQUIRE(r2.get<MoveOnly>(e2).val == 0);
 }
 TEST_CASE("Registry tests", "[ecs][ecs::registry]") {
     ecs::registry reg;
@@ -170,9 +201,9 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]") {
     SECTION("entity creation and destruction") {
         ecs::entity e0 = reg.create();
         ecs::entity e1 = reg.create<Position>();
-        ecs::entity e2 = reg.create<Position, Velocity>({0.1f, 10}, {1, 0});
+        ecs::entity e2 = reg.create<Position, Velocity>({ 0.1f, 10 }, { 1, 0 });
         ecs::entity e3 = 0;
-        Position copythis{4, 2};
+        Position copythis{ 4, 2 };
         ecs::entity e4 = reg.create(copythis);
         REQUIRE(reg.size() == 4);
 
@@ -187,15 +218,15 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]") {
         REQUIRE(reg.size(e1) == 1);
         REQUIRE(reg.contains<Position>(e1));
         REQUIRE_FALSE(reg.contains<Velocity>(e1));
-        REQUIRE(reg.get<Position>(e1) == Position{});
+        REQUIRE(reg.get<Position>(e1) == Position{ });
 
         REQUIRE(reg.valid(e2));
         REQUIRE_FALSE(reg.empty(e2));
         REQUIRE(reg.size(e2) == 2);
         REQUIRE(reg.contains<Position>(e2));
         REQUIRE(reg.contains<Velocity>(e2));
-        REQUIRE(reg.get<Position>(e2) == Position{0.1f, 10});
-        REQUIRE(reg.get<Velocity>(e2) == Velocity{1, 0});
+        REQUIRE(reg.get<Position>(e2) == Position{ 0.1f, 10 });
+        REQUIRE(reg.get<Velocity>(e2) == Velocity{ 1, 0 });
 
         REQUIRE_FALSE(reg.valid(e3));
         REQUIRE_THROWS_AS(reg.contains<Position>(e3), EcsException);
@@ -206,8 +237,8 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]") {
         REQUIRE(reg.size(e4) == 1);
         REQUIRE(reg.contains<Position>(e4));
         REQUIRE_FALSE(reg.contains<Velocity>(e4));
-        REQUIRE(reg.get<Position>(e4) == Position{4, 2});
-        REQUIRE(copythis == Position{4, 2});
+        REQUIRE(reg.get<Position>(e4) == Position{ 4, 2 });
+        REQUIRE(copythis == Position{ 4, 2 });
 
         reg.destroy(e0);
         REQUIRE_FALSE(reg.valid(e0));
@@ -230,7 +261,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]") {
         reg.emplace<Position>(e, 0.0f, 0.0f);
         REQUIRE(reg.valid(e));
         REQUIRE(reg.contains<Position>(e));
-        REQUIRE(reg.get<Position>(e) == Position{0.0f, 0.0f});
+        REQUIRE(reg.get<Position>(e) == Position{ 0.0f, 0.0f });
 
         reg.erase<Position>(e);
         REQUIRE(reg.valid(e));
@@ -255,7 +286,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]") {
             REQUIRE(std::find(posView.begin(), posView.end(), e3) != posView.end());
             REQUIRE(std::find(posView.begin(), posView.end(), e4) == posView.end());
 
-            auto posOnly = reg.view<Position>(ecs::exclude<Velocity>{});
+            auto posOnly = reg.view<Position>(ecs::exclude<Velocity>{ });
             REQUIRE(posOnly.size() == 2);
             REQUIRE(std::find(posOnly.begin(), posOnly.end(), e0) == posOnly.end());
             REQUIRE(std::find(posOnly.begin(), posOnly.end(), e1) != posOnly.end());
@@ -281,7 +312,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]") {
             REQUIRE(std::find(posView.begin(), posView.end(), e3) != posView.end());
             REQUIRE(std::find(posView.begin(), posView.end(), e4) == posView.end());
 
-            auto posOnly = reg.viewAny<Position>(ecs::exclude<Velocity>{});
+            auto posOnly = reg.viewAny<Position>(ecs::exclude<Velocity>{ });
             REQUIRE(posOnly.size() == 2);
             REQUIRE(std::find(posOnly.begin(), posOnly.end(), e0) == posOnly.end());
             REQUIRE(std::find(posOnly.begin(), posOnly.end(), e1) != posOnly.end());
@@ -304,10 +335,10 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]") {
 
     SECTION("copy") {
         ecs::registry reg2;
-        auto reg2e0 = reg2.create(Tag{"Hello, World!"});
-        auto reg2e1 = reg2.create(Position{1, 1}, Velocity{0, 0});
-        auto reg2e2 = reg2.create(Position{1, 2});
-        auto reg2e3 = reg2.create(Position{4, 1}, Health{99});
+        auto reg2e0 = reg2.create(Tag{ "Hello, World!" });
+        auto reg2e1 = reg2.create(Position{ 1, 1 }, Velocity{ 0, 0 });
+        auto reg2e2 = reg2.create(Position{ 1, 2 });
+        auto reg2e3 = reg2.create(Position{ 4, 1 }, Health{ 99 });
 
         auto reg1e0 = reg.copy(reg2e0, reg2);
         auto reg1e1 = reg.copy(reg2e1, reg2);
@@ -317,42 +348,44 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]") {
         REQUIRE(reg.getEntityManager().getSignature(reg1e0) == reg2.getEntityManager().getSignature(reg2e0));
         REQUIRE(reg.get<Tag>(reg1e0).s == "Hello, World!");
         REQUIRE(reg.getEntityManager().getSignature(reg1e1) == reg2.getEntityManager().getSignature(reg2e1));
-        REQUIRE(reg.get<Position>(reg1e1) == Position{1, 1});
-        REQUIRE(reg.get<Velocity>(reg1e1) == Velocity{0, 0});
+        REQUIRE(reg.get<Position>(reg1e1) == Position{ 1, 1 });
+        REQUIRE(reg.get<Velocity>(reg1e1) == Velocity{ 0, 0 });
         REQUIRE(reg.getEntityManager().getSignature(reg1e2) == reg2.getEntityManager().getSignature(reg2e2));
-        REQUIRE(reg.get<Position>(reg1e2) == Position{1, 2});
+        REQUIRE(reg.get<Position>(reg1e2) == Position{ 1, 2 });
         REQUIRE(reg.getEntityManager().getSignature(reg1e3) == reg2.getEntityManager().getSignature(reg2e3));
-        REQUIRE(reg.get<Position>(reg1e3) == Position{4, 1});
+        REQUIRE(reg.get<Position>(reg1e3) == Position{ 4, 1 });
         REQUIRE(reg.get<Health>(reg1e3).hp == 99);
     }
 
     SECTION("merge") {
         ecs::registry reg2;
 
-        auto e0 = reg.create(Position{1, 0});
-        auto e1 = reg.create(Position{0, 1}, Velocity{1, 1});
+        auto e0 = reg.create(Position{ 1, 0 });
+        auto e1 = reg.create(Position{ 0, 1 }, Velocity{ 1, 1 });
 
-        auto e2 = reg2.create(Tag{"Hello, World!"});
-        auto e3 = reg2.create(Position{1, 1}, Velocity{0, 0});
-        auto e4 = reg2.create(Position{1, 2});
-        auto e5 = reg2.create(Position{4, 1}, Health{99});
+        auto e2 = reg2.create(Tag{ "Hello, World!" });
+        auto e3 = reg2.create(Position{ 1, 1 }, Velocity{ 0, 0 });
+        auto e4 = reg2.create(Position{ 1, 2 });
+        auto e5 = reg2.create(Position{ 4, 1 }, Health{ 99 });
 
-        for(auto e : reg2.view()) reg.copy(e, reg2);
+        for(auto e : reg2.view())
+            reg.copy(e, reg2);
 
         REQUIRE(reg.size() == 6);
         REQUIRE(reg.view<Position>().size() == 5);
 
         unsigned e0_found = 0, e1_found = 0, e2_found = 0, e3_found = 0, e4_found = 0, e5_found = 0;
         for(auto e : reg.view<>()) {
-            e0_found += reg.getEntityManager().getSignature(e) == reg.getEntityManager().getSignature(e0) && reg.get<Position>(e) == Position{1, 0};
-            e1_found += reg.getEntityManager().getSignature(e) == reg.getEntityManager().getSignature(e1) && reg.get<Position>(e) == Position{0, 1} &&
-                        reg.get<Velocity>(e) == Velocity{1, 1};
+            e0_found += reg.getEntityManager().getSignature(e) == reg.getEntityManager().getSignature(e0) && reg.get<Position>(e) == Position{ 1, 0 };
+            e1_found += reg.getEntityManager().getSignature(e) == reg.getEntityManager().getSignature(e1) &&
+                        reg.get<Position>(e) == Position{ 0, 1 } && reg.get<Velocity>(e) == Velocity{ 1, 1 };
             e2_found += reg.getEntityManager().getSignature(e) == reg2.getEntityManager().getSignature(e2) && reg.get<Tag>(e).s == "Hello, World!";
             e3_found += reg.getEntityManager().getSignature(e) == reg2.getEntityManager().getSignature(e3) &&
-                        reg.get<Position>(e) == Position{1, 1} && reg.get<Velocity>(e) == Velocity{0, 0};
-            e4_found += reg.getEntityManager().getSignature(e) == reg2.getEntityManager().getSignature(e4) && reg.get<Position>(e) == Position{1, 2};
+                        reg.get<Position>(e) == Position{ 1, 1 } && reg.get<Velocity>(e) == Velocity{ 0, 0 };
+            e4_found += reg.getEntityManager().getSignature(e) == reg2.getEntityManager().getSignature(e4) &&
+                        reg.get<Position>(e) == Position{ 1, 2 };
             e5_found += reg.getEntityManager().getSignature(e) == reg2.getEntityManager().getSignature(e5) &&
-                        reg.get<Position>(e) == Position{4, 1} && reg.get<Health>(e).hp == 99;
+                        reg.get<Position>(e) == Position{ 4, 1 } && reg.get<Health>(e).hp == 99;
         }
 
         REQUIRE(e0_found == 1);
@@ -364,13 +397,14 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]") {
 
         reg.clear();
 
-        for(auto e : reg2.view<Position>(ecs::exclude<Velocity>{})) reg.copy(e, reg2);
+        for(auto e : reg2.view<Position>(ecs::exclude<Velocity>{ }))
+            reg.copy(e, reg2);
 
         REQUIRE(reg.size() == 2);
     }
 
     SECTION("registry component copy semantics") {
-        auto e1 = reg.create<Health>(Health{42});
+        auto e1 = reg.create<Health>(Health{ 42 });
 
         ecs::registry second = reg;
 
@@ -387,7 +421,7 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]") {
 
         std::vector<ecs::entity> original_ids;
         for(int i = 0; i < 10; ++i) {
-            auto e = reg.create<Position, Health>(Position{float(i), float(i)}, Health{unsigned(i)});
+            auto e = reg.create<Position, Health>(Position{ float(i), float(i) }, Health{ unsigned(i) });
             original_ids.push_back(e);
         }
         std::set<ecs::entity> all_ids(original_ids.begin(), original_ids.end());
@@ -397,14 +431,16 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]") {
 
         std::vector<ecs::entity> copy_ids;
         for(int i = 0; i < 10; ++i) {
-            auto e = copy.create<Position, Health>(Position{float(i + 100), float(i + 100)}, Health{unsigned(i) + 100});
+            auto e = copy.create<Position, Health>(Position{ float(i + 100), float(i + 100) }, Health{ unsigned(i) + 100 });
             copy_ids.push_back(e);
         }
 
         REQUIRE(reg.size() == original_ids.size());
         REQUIRE(copy.size() == copy_ids.size() + original_ids.size());
 
-        for(auto e : copy_ids) { REQUIRE(all_ids.find(e) == all_ids.end()); }
+        for(auto e : copy_ids) {
+            REQUIRE(all_ids.find(e) == all_ids.end());
+        }
 
         for(auto e : original_ids) {
             REQUIRE(reg.valid(e));
@@ -426,11 +462,15 @@ TEST_CASE("Registry example", "[ecs][ecs::registry]") {
     for(auto i = 0u; i < 10u; ++i) {
         const auto entity = registry.create();
         registry.emplace<Position>(entity, i * 1.f, i * 1.f);
-        if(i % 2 == 0) { registry.emplace<Velocity>(entity, i * .1f, i * .1f); }
-        if(i == 8) { registry.emplace<Tag>(entity); }
+        if(i % 2 == 0) {
+            registry.emplace<Velocity>(entity, i * .1f, i * .1f);
+        }
+        if(i == 8) {
+            registry.emplace<Tag>(entity);
+        }
     }
 
-    auto view = registry.view<Position, Velocity>(ecs::exclude<Tag>{});
+    auto view = registry.view<Position, Velocity>(ecs::exclude<Tag>{ });
 
     REQUIRE(view.size() == 4);
 

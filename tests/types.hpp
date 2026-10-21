@@ -22,6 +22,16 @@ struct Health {
     unsigned hp;
 };
 
+struct MoveOnly {
+    int val = -1;
+    MoveOnly(int _val = 0) : val(_val) {}
+    MoveOnly(MoveOnly const &) = delete;
+    MoveOnly(MoveOnly &&) = default;
+
+    MoveOnly &operator=(MoveOnly const &) = delete;
+    MoveOnly &operator=(MoveOnly &&) = default;
+};
+
 struct EcsException : std::logic_error {
     EcsException() = delete;
     EcsException(char const *) = delete;
