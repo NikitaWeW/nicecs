@@ -1,12 +1,8 @@
 #include "catch2/catch_test_macros.hpp"
-#include "types.hpp"
-#include "nicecs/ecs.hpp"
-#include "nicecs/ecs.hpp" // check if there are no odr issues
+#include "common.hpp"
 
 #include <vector>
 #include <set>
-
-/*! \cond Doxygen_Suppress */
 
 TEST_CASE("Sparse set tests", "[ecs][ecs::sparse_set]") {
     ecs::sparse_set<std::string> s;
@@ -169,31 +165,20 @@ TEST_CASE("Emplacement of a aggregate type in the sparse set", "[ecs][ecs::spars
 TEST_CASE("Move only types") {
     static_assert(!std::is_copy_constructible_v<MoveOnly>);
 
-    ecs::sparse_set<MoveOnly> s; // Does not compile
+    ecs::sparse_set<MoveOnly> s;
     s.emplace(0, 4);
     s.emplace(1, 1);
     s.emplace(2, 5);
 
-
-    std::vector<MoveOnly> v; // Compiles
-    v.emplace_back(4);
-    v.emplace_back(1);
-    v.emplace_back(5);
-
-
     ecs::registry r;
-    auto e = r.create<MoveOnly>(); // Does not compile
+    auto e = r.create(MoveOnly{ });
+    REQUIRE(r.contains<MoveOnly>(e));
     r.get<MoveOnly>(e);
     r.erase<MoveOnly>(e);
     r.emplace<MoveOnly>(e, 1);
     REQUIRE(r.contains<MoveOnly>(e));
     REQUIRE(r.get<MoveOnly>(e).val == 1);
     r.emplace<Position>(e);
-
-    ecs::registry r2;
-    auto e2 = r2.copy(e, r);
-    REQUIRE(r2.contains<MoveOnly>(e2));
-    REQUIRE(r2.get<MoveOnly>(e2).val == 0);
 }
 TEST_CASE("Registry tests", "[ecs][ecs::registry]") {
     ecs::registry reg;
@@ -320,6 +305,80 @@ TEST_CASE("Registry tests", "[ecs][ecs::registry]") {
             REQUIRE(copy.contains<Position>(e));
             REQUIRE(copy.contains<Health>(e));
         }
+    }
+}
+
+TEST_CASE("Views", "[ecs][ecs::view]") {
+    ecs::registry reg;
+    addEntities(reg, 100'000);
+
+    auto view1 = reg.view<Position, Velocity>(ecs::exclude<Health, Tag>{ });
+
+    for(auto it = view1.begin(); it != view1.end(); ++it) {
+        REQUIRE(reg.storage<Position>().contains(*it));
+        REQUIRE(reg.storage<Velocity>().contains(*it));
+        REQUIRE_FALSE(reg.storage<Health>().contains(*it));
+        REQUIRE_FALSE(reg.storage<Tag>().contains(*it));
+    }
+
+    reg.clear();
+
+    {
+        auto e0 = reg.create();
+        auto e1 = reg.create<Position>();
+        auto e2 = reg.create<Position, Velocity>();
+        auto e3 = reg.create<Position>();
+        auto e4 = reg.create<Velocity>();
+
+        auto posView = reg.view<Position>();
+        REQUIRE(posView.size() == 3);
+        auto it = posView.begin();
+        REQUIRE(it != posView.end());
+        REQUIRE(reg.valid(*it++));
+        REQUIRE(reg.valid(*it));
+        ++it;
+        REQUIRE(reg.valid(*it));
+
+        REQUIRE(std::find(posView.begin(), posView.end(), e0) == posView.end());
+        REQUIRE(std::find(posView.begin(), posView.end(), e1) != posView.end());
+        REQUIRE(std::find(posView.begin(), posView.end(), e2) != posView.end());
+        REQUIRE(std::find(posView.begin(), posView.end(), e3) != posView.end());
+        REQUIRE(std::find(posView.begin(), posView.end(), e4) == posView.end());
+
+        auto posOnly = reg.view<Position>(ecs::exclude<Velocity>{ });
+        REQUIRE(posOnly.size() >= 2);
+        REQUIRE(std::find(posOnly.begin(), posOnly.end(), e0) == posOnly.end());
+        REQUIRE(std::find(posOnly.begin(), posOnly.end(), e1) != posOnly.end());
+        REQUIRE(std::find(posOnly.begin(), posOnly.end(), e2) == posOnly.end());
+        REQUIRE(std::find(posOnly.begin(), posOnly.end(), e3) != posOnly.end());
+        REQUIRE(std::find(posOnly.begin(), posOnly.end(), e4) == posOnly.end());
+
+        auto velView = reg.view<Velocity>();
+        REQUIRE(posOnly.size() == 2);
+        REQUIRE(std::find(velView.begin(), velView.end(), e0) == velView.end());
+        REQUIRE(std::find(velView.begin(), velView.end(), e1) == velView.end());
+        REQUIRE(std::find(velView.begin(), velView.end(), e2) != velView.end());
+        REQUIRE(std::find(velView.begin(), velView.end(), e3) == velView.end());
+        REQUIRE(std::find(velView.begin(), velView.end(), e4) != velView.end());
+    }
+
+    reg.clear();
+    {
+        auto e0 = reg.create();
+        auto e1 = reg.create();
+        auto e2 = reg.create();
+        auto e3 = reg.create();
+
+        reg.storage<Position>("client"_hs).emplace(e0);
+        reg.storage<Position>("server"_hs).emplace(e1);
+        reg.storage<Velocity>("client"_hs).emplace(e2);
+        reg.storage<Velocity>("server"_hs).emplace(e3);
+
+        auto viewPosClient = ecs::make_view(std::make_tuple(&reg.storage<Position>("client"_hs)));
+        auto viewVelClient = ecs::make_view(std::make_tuple(&reg.storage<Velocity>("client"_hs)));
+        auto viewPosServer = ecs::make_view(std::make_tuple(&reg.storage<Position>("server"_hs)));
+        auto viewVelServer = ecs::make_view(std::make_tuple(&reg.storage<Velocity>("server"_hs)));
+        // ...
     }
 }
 

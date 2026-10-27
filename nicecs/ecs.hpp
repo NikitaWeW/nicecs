@@ -26,6 +26,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <string_view>
 #include <type_traits>
 #include <vector>
+#include <array>
 
 /*! \cond Doxygen_Suppress */
 // Config section
@@ -99,7 +100,7 @@ public:
 /// 2. Loops over every entity in the smallest pool.
 /// 3. Performs O(1) contains check on every other pool.
 /// This way there are no memory allocations and practically no overhead.
-template <ecs::size_t IncludeSize, ecs::size_t ExcludeSize>
+template <ecs::size_t IncludeSize, ecs::size_t ExcludeSize = 0>
 class view {
     static_assert(IncludeSize != 0u);
 private:
@@ -130,6 +131,7 @@ public:
         reference operator*() const noexcept;
 
         constexpr bool operator==(iterator const &other) const noexcept;
+        constexpr bool operator!=(iterator const &other) const noexcept;
     };
 
     constexpr view(std::array<view_iterable const *, IncludeSize> &&mInclude,
@@ -142,6 +144,18 @@ public:
 
 template <typename T>
 class component_array;
+
+template <typename... Include, typename... Exclude>
+constexpr inline view<sizeof...(Include), sizeof...(Exclude)> make_view(std::tuple<Include...> include, std::tuple<Exclude...> exclude = {}) {
+    // clang-format off
+    return std::apply([&](auto const *... inc){
+        return std::apply([&](auto const *... exc){
+            return view(std::array<view_iterable const *, sizeof...(Include)>{inc...}, 
+                        std::array<view_iterable const *, sizeof...(Exclude)>{exc...});
+        }, exclude);
+    }, include);
+    // clang-format on
+}
 
 namespace impl {
 
@@ -299,13 +313,6 @@ public:
     /// @throws If the same component is added more than once.
     entity create();
 
-    /// @brief Create an entity.
-    /// @param components The components to move in.
-    /// @return Unique valid entity id.
-    /// @throws If the same component is added more than once.
-    template <typename... Components_t>
-    entity create(Components_t &&...components);
-
     /// @copydoc impl::EntityManager::valid
     bool valid(entity const &entity) const;
 
@@ -345,6 +352,18 @@ public:
     iterator begin() const;
     /// @copydoc begin
     iterator end() const;
+
+    // Syntax sugar below
+
+    /// @brief Create an entity.
+    /// @param components The components to move in.
+    /// @return Unique valid entity id.
+    /// @throws If the same component is added more than once.
+    template <typename... Components_t>
+    entity create(Components_t &&...components);
+
+    template <typename... Components_t>
+    entity create();
 
     /// @brief Checks if a valid entity has a component.
     /// @param entity A valid entity identifier.
@@ -392,9 +411,11 @@ inline ecs::component_id ecs::get_component_id() noexcept {
 }
 template <typename T>
 inline T ecs::combine_hash(T const &lhs, T const &rhs) noexcept {
+    ECS_PROFILE;
     return lhs ^ rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
 }
 inline ecs::component_id ecs::operator""_hs(const char *str, ecs::size_t len) {
+    ECS_PROFILE;
     auto res = std::hash<std::string_view>{ }(std::string_view(str, len));
     if(res == 0) {
         return std::numeric_limits<component_id>::max();
@@ -430,6 +451,7 @@ inline bool ecs::impl::entity_manager::contains(entity const &entity) const {
     return 1 <= entity && entity < mNextID && mEntities.contains(entity);
 }
 inline void ecs::impl::entity_manager::clear() {
+    ECS_PROFILE;
     mEntities.clear();
     mAvailableEntities.clear();
     mNextID = 1;
@@ -455,22 +477,27 @@ inline void ecs::component_array<T>::erase(entity const &entity) {
 }
 template <typename T>
 inline bool ecs::component_array<T>::contains(entity const &entity) const {
+    ECS_PROFILE;
     return sparse_set<T>::contains(entity);
 }
 template <typename T>
 inline ecs::size_t ecs::component_array<T>::size() const {
+    ECS_PROFILE;
     return sparse_set<T>::size();
 }
 template <typename T>
 inline ecs::view_iterable::iterator ecs::component_array<T>::begin() const noexcept {
+    ECS_PROFILE;
     return sparse_set<T>::sparse().begin();
 }
 template <typename T>
 inline ecs::view_iterable::iterator ecs::component_array<T>::end() const noexcept {
+    ECS_PROFILE;
     return sparse_set<T>::sparse().end();
 }
 template <typename T>
 inline void ecs::component_array<T>::clear() {
+    ECS_PROFILE;
     sparse_set<T>::clear();
 }
 template <typename T>
@@ -544,16 +571,7 @@ inline ecs::entity ecs::registry::create() {
     ECS_PROFILE;
     return mEntityManager.emplace();
 }
-template <typename... Components_t>
-inline ecs::entity ecs::registry::create(Components_t &&...components) {
-    ECS_PROFILE;
 
-    entity entity = mEntityManager.emplace();
-
-    (storage<Components_t>(0).template emplace<std::decay_t<Components_t>>(entity, std::forward<Components_t>(components)), ...);
-
-    return entity;
-}
 inline ecs::registry::registry(registry const &other) {
     *this = other;
 }
@@ -611,7 +629,7 @@ inline ecs::size_t ecs::registry::size() const {
 template <typename... Include, typename... Exclude>
 inline ecs::view<sizeof...(Include), sizeof...(Exclude)> ecs::registry::view(exclude<Exclude...>) const {
     ECS_PROFILE;
-    return ecs::view(std::tuple<Include...>(mComponentManager.get<Include>()...), std::tuple<Exclude...>(mComponentManager.get<Exclude>()...));
+    return ecs::view({ storage<Include>(0)... }, { storage<Exclude>(0)... });
 }
 inline ecs::registry::iterator ecs::registry::begin() const {
     return mEntityManager.begin();
@@ -620,6 +638,87 @@ inline ecs::registry::iterator ecs::registry::end() const {
     return mEntityManager.end();
 }
 
+template <ecs::size_t Include, ecs::size_t Exclude>
+constexpr ecs::view<Include, Exclude>::view(std::array<view_iterable const *, Include> &&include,
+    std::array<view_iterable const *, Exclude> &&exclude) noexcept: mInclude(std::move(include)), mExclude(std::move(exclude)) {
+    if constexpr(Include > 1u) {
+        auto &smallest = *std::min_element(mInclude.begin(), mInclude.end(),
+            [](auto const &lhs, auto const &rhs) { return lhs->size() < rhs->size(); });
+        std::swap(smallest, mInclude.back());
+    }
+}
+
+template <ecs::size_t Include, ecs::size_t Exclude>
+ecs::view<Include, Exclude>::iterator::iterator(typename ecs::view_iterable::iterator it, typename ecs::view_iterable::iterator end,
+    view_iterable const **include, view_iterable const **exclude): mIt(it), mEnd(end), mInclude(include), mExclude(exclude) {
+}
+
+template <ecs::size_t Include, ecs::size_t Exclude>
+bool ecs::view<Include, Exclude>::iterator::valid(entity const &e) const {
+    ECS_PROFILE;
+    constexpr auto pred = [&e](auto const &pool) { return pool->contains(e); };
+    return ((Include == 1u) || std::all_of(mInclude, mInclude + Include - 1u, pred)) &&
+           ((Exclude == 0u) || std::none_of(mExclude, mExclude + Exclude, pred));
+}
+template <ecs::size_t Include, ecs::size_t Exclude>
+typename ecs::view<Include, Exclude>::iterator &ecs::view<Include, Exclude>::iterator::operator++() noexcept {
+    ECS_PROFILE;
+    if(mIt == mEnd) {
+        return *this;
+    }
+    ++mIt;
+    for(; mIt != mEnd && !valid(*mIt); ++mIt) {
+    }
+    return *this;
+}
+template <ecs::size_t Include, ecs::size_t Exclude>
+typename ecs::view<Include, Exclude>::iterator ecs::view<Include, Exclude>::iterator::operator++(int) const noexcept {
+    return ++iterator(this);
+}
+
+template <ecs::size_t Include, ecs::size_t Exclude>
+typename ecs::view<Include, Exclude>::iterator::reference ecs::view<Include, Exclude>::iterator::operator*() const noexcept {
+    return *mIt;
+}
+
+template <ecs::size_t Include, ecs::size_t Exclude>
+constexpr bool ecs::view<Include, Exclude>::iterator::operator==(iterator const &other) const noexcept {
+    return mIt == other.mIt;
+}
+template <ecs::size_t Include, ecs::size_t Exclude>
+constexpr bool ecs::view<Include, Exclude>::iterator::operator!=(iterator const &other) const noexcept {
+    return !operator==(other);
+}
+
+template <ecs::size_t Include, ecs::size_t Exclude>
+typename ecs::view<Include, Exclude>::iterator ecs::view<Include, Exclude>::begin() const noexcept {
+    return iterator(mInclude[Include - 1u]->begin(), mInclude[Include - 1u]->end(), mInclude.data(), mExclude.data());
+}
+template <ecs::size_t Include, ecs::size_t Exclude>
+typename ecs::view<Include, Exclude>::iterator ecs::view<Include, Exclude>::end() const noexcept {
+    return iterator(mInclude[Include - 1u]->end(), mInclude[Include - 1u]->end(), mInclude.data(), mExclude.data());
+}
+template <ecs::size_t Include, ecs::size_t Exclude>
+ecs::size_t ecs::view<Include, Exclude>::size() const noexcept {
+    return mInclude[Include - 1u]->size();
+}
+
+// Syntax sugar
+
+template <typename... Components_t>
+inline ecs::entity ecs::registry::create(Components_t &&...components) {
+    ECS_PROFILE;
+
+    entity entity = create();
+
+    (storage<std::decay_t<Components_t>>(0).emplace(entity, std::forward<Components_t>(components)), ...);
+
+    return entity;
+}
+template <typename... Components_t>
+inline ecs::entity ecs::registry::create() {
+    return create(Components_t{ }...);
+}
 template <typename T>
 inline bool ecs::registry::contains(entity const &entity) const {
     ECS_PROFILE;
@@ -658,65 +757,6 @@ inline T &ecs::registry::emplace(entity const &entity, Args &&...args) {
     ECS_ASSERT(!contains<T>(entity), "Component to emplace already added");
 
     return storage<T>(0).emplace(entity, std::forward<Args>(args)...);
-}
-
-template <ecs::size_t Include, ecs::size_t Exclude>
-constexpr ecs::view<Include, Exclude>::view(std::array<view_iterable const *, Include> &&include,
-    std::array<view_iterable const *, Exclude> &&exclude) noexcept: mInclude(std::move(include)), mExclude(std::move(exclude)) {
-    if constexpr(Include > 1u) {
-        auto &smallest = *std::min_element(mInclude.begin(), mInclude.end(),
-            [](auto const &lhs, auto const &rhs) { return lhs->size() < rhs->size(); });
-        std::swap(smallest, mInclude.back());
-    }
-}
-
-template <ecs::size_t Include, ecs::size_t Exclude>
-ecs::view<Include, Exclude>::iterator::iterator(typename ecs::view_iterable::iterator it, typename ecs::view_iterable::iterator end,
-    view_iterable const **include, view_iterable const **exclude): mIt(it), mEnd(end), mInclude(include), mExclude(exclude) {
-}
-
-template <ecs::size_t Include, ecs::size_t Exclude>
-bool ecs::view<Include, Exclude>::iterator::valid(entity const &e) const {
-    constexpr auto pred = [&e](auto const &pool) { return pool->contains(e); };
-    return ((Include == 1u) || std::all_of(mInclude, mInclude + Include - 1u, pred)) &&
-           ((Exclude == 0u) || std::none_of(mExclude, mExclude + Exclude, pred));
-}
-template <ecs::size_t Include, ecs::size_t Exclude>
-typename ecs::view<Include, Exclude>::iterator &ecs::view<Include, Exclude>::iterator::operator++() noexcept {
-    if(mIt == mEnd) {
-        return *this;
-    }
-    ++mIt;
-    for(; mIt != mEnd && !valid(*mIt); ++mIt) {
-    }
-    return *this;
-}
-template <ecs::size_t Include, ecs::size_t Exclude>
-typename ecs::view<Include, Exclude>::iterator ecs::view<Include, Exclude>::iterator::operator++(int) const noexcept {
-    return ++iterator(this);
-}
-
-template <ecs::size_t Include, ecs::size_t Exclude>
-typename ecs::view<Include, Exclude>::iterator::reference ecs::view<Include, Exclude>::iterator::operator*() const noexcept {
-    return *mIt;
-}
-
-template <ecs::size_t Include, ecs::size_t Exclude>
-constexpr bool ecs::view<Include, Exclude>::iterator::operator==(iterator const &other) const noexcept {
-    return mIt == other.mIt;
-}
-
-template <ecs::size_t Include, ecs::size_t Exclude>
-typename ecs::view<Include, Exclude>::iterator ecs::view<Include, Exclude>::begin() const noexcept {
-    return iterator(mInclude[Include - 1u]->begin(), mInclude[Include - 1u]->end(), mInclude.data(), mExclude.data());
-}
-template <ecs::size_t Include, ecs::size_t Exclude>
-typename ecs::view<Include, Exclude>::iterator ecs::view<Include, Exclude>::end() const noexcept {
-    return iterator(mInclude[Include - 1u]->end(), mInclude[Include - 1u]->end(), mInclude.data(), mExclude.data());
-}
-template <ecs::size_t Include, ecs::size_t Exclude>
-ecs::size_t ecs::view<Include, Exclude>::size() const noexcept {
-    return mInclude[Include - 1u]->size();
 }
 
 /*! \endcond */
