@@ -1,4 +1,4 @@
-Actually, its just an EC (entity component) as the library provides no systems api. Nonetheless, i use the ecs term as it is more common.
+Actually, its just an EC (entity component), as the library provides no systems utilities. Nonetheless, I use the term ecs as it is more common.
 
 ## Features
 
@@ -8,15 +8,7 @@ Actually, its just an EC (entity component) as the library provides no systems a
 
 ---
 
-*Note: the git tags / releases might be outdated, just use latest commit*
-
-## Documentation
-Documentation is generated using doxygen. Simply run
-
-```sh
-doxygen
-```
-in the root folder.
+<!-- *Note: the git tags / releases might be outdated, just use latest commit* -->
 
 ## Usage
 
@@ -72,6 +64,10 @@ int main()
 }
 ```
 
+## Documentation
+There are doxygen comments I guess. 
+The usage is pretty straight forward and the library is not that big.
+
 ## Tests and benchmarks
 Build the cmake project in the tests directory:
 
@@ -83,16 +79,20 @@ build/benchmarks
 
 ## Thread safety
 The library is not synchronized. Even if it was, it still would be unusable in multithreaded applications, because of stale data issues.
-
 You will need to manually synchronize the usage the library.
 
-## Older development
+<!-- ## Older development
 
 - https://github.com/NikitaWeW/breakout/blob/45cb3f0df4f6f5712acfa4df22b055edc37b8200/src/utils/ECS.hpp
 - https://github.com/NikitaWeW/breakout/tree/locked-ecs
-- https://github.com/NikitaWeW/ecs (this repo)
+- https://github.com/NikitaWeW/nicecs / https://codeberg.org/nikitam/nicecs (this repo) -->
+
+## Some ECS resources:
+
+- [Austin Morlan’s ECS design.](https://austinmorlan.com/posts/entity_component_system)
+- [EnTT library.](https://github.com/skypjack/entt)
+- [ECS faq.](Https://github.com/SanderMertens/ecs-faq)
 
 ---
 
-- Austin Morlan’s ECS design: https://austinmorlan.com/posts/entity_component_system  
-- EnTT library: https://github.com/skypjack/entt
+*No generative AI was used.*

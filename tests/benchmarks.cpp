@@ -8,14 +8,13 @@
 #include <string>
 #include <cstring>
 
-
 TEST_CASE("ecs::sparse_set benchmarks", "[benchmark][ecs][ecs::sparse_set]") {
     ecs::sparse_set<Position> s;
-    
+
     uint64_t i = 0;
     BENCHMARK("emplace") {
         ++i;
-        return s.emplace(i, 3.6f*i, -2.4f*i);
+        return s.emplace(i, 3.6f * i, -2.4f * i);
     };
 
     i = 0;
@@ -23,7 +22,7 @@ TEST_CASE("ecs::sparse_set benchmarks", "[benchmark][ecs][ecs::sparse_set]") {
 
     BENCHMARK("emplace and erase") {
         ++i;
-        s.emplace(i, 3.6f*i, -2.4f*i);
+        s.emplace(i, 3.6f * i, -2.4f * i);
         s.erase(i);
         return i;
     };
@@ -33,17 +32,28 @@ TEST_CASE("ecs::sparse_set benchmarks", "[benchmark][ecs][ecs::sparse_set]") {
 
     BENCHMARK("emplace and get") {
         ++i;
-        s.emplace(i, 3.6f*i, -2.4f*i);
+        s.emplace(i, 3.6f * i, -2.4f * i);
         return s.get(i);
     };
 }
 TEST_CASE("ecs::registry benchmarks", "[benchmark][ecs][ecs::registry]") {
     {
-        ecs::registry registry;
-        addEntities(registry, 100'000);
+        ecs::registry reg;
+        addEntities(reg, 100'000);
         BENCHMARK("view (100'000)") {
-            auto v = registry.view<Position, Velocity>(ecs::exclude<Tag, Health>{});
-            return v.size();
+            // clang-format off
+            auto v = ecs::make_view(
+                std::tuple(&reg.storage<Position>(), &reg.storage<Velocity>(), &reg.storage<Position>("named"_hs), &reg.storage<Velocity>("named"_hs)),
+                std::tuple(&reg.storage<Health>(), &reg.storage<Tag>(), &reg.storage<Health>("named1"_hs), &reg.storage<Tag>("named2"_hs))
+            );
+            // clang-format on
+
+            ecs::size_t size = 0;
+            for(auto it = v.begin(); it != v.end(); ++it) {
+                ++size;
+            }
+
+            return size;
         };
     }
     {
@@ -63,6 +73,8 @@ TEST_CASE("ecs::registry benchmarks", "[benchmark][ecs][ecs::registry]") {
         };
     }
     {
-        BENCHMARK("create registry") { return ecs::registry{}; };
+        BENCHMARK("create registry") {
+            return ecs::registry{ };
+        };
     }
 }

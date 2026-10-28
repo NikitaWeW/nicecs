@@ -2,19 +2,17 @@
       ___  ___ ___ 
      / _ \/ __/ __|        Copyright (c) 2024 Nikita Martynau 
     |  __/ (__\__ \        https://opensource.org/license/mit 
-     \___|\___|___/ v1.6   https://github.com/nikitawew/nicecs
+     \___|\___|___/ v1.6.0 https://github.com/nikitawew/nicecs
+
+No generative AI was used.
 
 Thanks to: 
 https://austinmorlan.com/posts/entity_component_system.
 https://github.com/skypjack/entt.
 Https://github.com/SanderMertens/ecs-faq
-*/
 
-/*
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
@@ -117,14 +115,14 @@ public:
         using pointer = void;
         using reference = value_type;
     private:
-        view_iterable const **mInclude;
-        view_iterable const **mExclude;
+        view_iterable const * const *mInclude;
+        view_iterable const * const *mExclude;
         view_iterable::iterator mIt;
-        view_iterable::iterator mEnd;
 
         bool valid(entity const &e) const;
+        void seek_next();
     public:
-        iterator(view_iterable::iterator it, view_iterable::iterator end, view_iterable const **include, view_iterable const **exclude);
+        iterator(view_iterable::iterator it, view_iterable const * const *include, view_iterable const * const *exclude);
         iterator &operator++() noexcept;
         iterator operator++(int) const noexcept;
 
@@ -145,8 +143,11 @@ public:
 template <typename T>
 class component_array;
 
+/// @brief Helper function to make views.
+/// Takes types, casts them to view_iterable const * and makes a view
+/// @example ecs::make_view(std::make_tuple(&reg.storage<Position>("name"_hs)), std::make_tuple(&reg.storage<Velocity>("name"_hs)))
 template <typename... Include, typename... Exclude>
-constexpr inline view<sizeof...(Include), sizeof...(Exclude)> make_view(std::tuple<Include...> include, std::tuple<Exclude...> exclude = {}) {
+constexpr inline view<sizeof...(Include), sizeof...(Exclude)> make_view(std::tuple<Include...> include, std::tuple<Exclude...> exclude = { }) {
     // clang-format off
     return std::apply([&](auto const *... inc){
         return std::apply([&](auto const *... exc){
@@ -210,7 +211,7 @@ namespace impl {
         /// @brief Erases all elements.
         virtual void clear() = 0;
 
-        /// @brief Create a copy of the component array.
+        /// @brief Create and returns a copy of the component array if the elements can be copied, nullptr otherwise.
         virtual std::unique_ptr<component_storage> clone() const = 0;
     };
 
@@ -327,6 +328,8 @@ public:
 
     /// @brief Get the number of entities in a registry.
     ecs::size_t size() const;
+    /// @brief Check if the registry has no entities.
+    bool empty() const;
 
     /// @brief Get the number of components in an entity.
     /// @throws If the entity is not a valid identifier.
@@ -412,7 +415,7 @@ inline ecs::component_id ecs::get_component_id() noexcept {
 template <typename T>
 inline T ecs::combine_hash(T const &lhs, T const &rhs) noexcept {
     ECS_PROFILE;
-    return lhs ^ rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
+    return lhs ^ (rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2));
 }
 inline ecs::component_id ecs::operator""_hs(const char *str, ecs::size_t len) {
     ECS_PROFILE;
@@ -503,7 +506,10 @@ inline void ecs::component_array<T>::clear() {
 template <typename T>
 inline std::unique_ptr<ecs::impl::component_storage> ecs::component_array<T>::clone() const {
     ECS_PROFILE;
-    return std::unique_ptr<ecs::impl::component_storage>{ new ecs::component_array<T>{ *this } };
+    if constexpr(std::is_copy_constructible_v<T>) {
+        return std::unique_ptr<ecs::impl::component_storage>{ new ecs::component_array<T>{ *this } };
+    }
+    return nullptr;
 }
 
 template <typename T>
@@ -541,7 +547,10 @@ inline ecs::impl::component_manager::component_manager(impl::component_manager c
 inline ecs::impl::component_manager &ecs::impl::component_manager::operator=(impl::component_manager const &other) {
     ECS_PROFILE;
     for(auto [id, ptr] : other.mComponentArrays) {
-        mComponentArrays.emplace(id, ptr->clone());
+        auto copy = ptr->clone();
+        if(copy) {
+            mComponentArrays.emplace(id, std::move(copy));
+        }
     }
 
     return *this;
@@ -561,11 +570,11 @@ inline ecs::sparse_set<std::unique_ptr<ecs::impl::component_storage>> const &ecs
 
 template <typename T>
 ecs::component_array<T> const &ecs::registry::storage(component_id id) const {
-    return *mComponentManager.try_emplace<T>(id);
+    return *mComponentManager.try_emplace<T>(combine_hash(get_component_id<T>(), id));
 }
 template <typename T>
 ecs::component_array<T> &ecs::registry::storage(ecs::component_id id) {
-    return *mComponentManager.try_emplace<T>(id);
+    return *mComponentManager.try_emplace<T>(combine_hash(get_component_id<T>(), id));
 }
 inline ecs::entity ecs::registry::create() {
     ECS_PROFILE;
@@ -626,10 +635,13 @@ inline ecs::size_t ecs::registry::size() const {
     ECS_PROFILE;
     return mEntityManager.size();
 }
+inline bool ecs::registry::empty() const {
+    return size() == 0;
+}
 template <typename... Include, typename... Exclude>
 inline ecs::view<sizeof...(Include), sizeof...(Exclude)> ecs::registry::view(exclude<Exclude...>) const {
     ECS_PROFILE;
-    return ecs::view({ storage<Include>(0)... }, { storage<Exclude>(0)... });
+    return ecs::make_view(std::tuple(&storage<Include>(0)...), std::tuple(&storage<Exclude>(0)...));
 }
 inline ecs::registry::iterator ecs::registry::begin() const {
     return mEntityManager.begin();
@@ -649,38 +661,38 @@ constexpr ecs::view<Include, Exclude>::view(std::array<view_iterable const *, In
 }
 
 template <ecs::size_t Include, ecs::size_t Exclude>
-ecs::view<Include, Exclude>::iterator::iterator(typename ecs::view_iterable::iterator it, typename ecs::view_iterable::iterator end,
-    view_iterable const **include, view_iterable const **exclude): mIt(it), mEnd(end), mInclude(include), mExclude(exclude) {
+ecs::view<Include, Exclude>::iterator::iterator(typename ecs::view_iterable::iterator it,
+    view_iterable const * const *include, view_iterable const * const *exclude): mInclude(include), mExclude(exclude), mIt(it) {
+    seek_next();
 }
-
 template <ecs::size_t Include, ecs::size_t Exclude>
 bool ecs::view<Include, Exclude>::iterator::valid(entity const &e) const {
     ECS_PROFILE;
-    constexpr auto pred = [&e](auto const &pool) { return pool->contains(e); };
+    auto pred = [&e](auto const &pool) { return pool->contains(e); };
     return ((Include == 1u) || std::all_of(mInclude, mInclude + Include - 1u, pred)) &&
            ((Exclude == 0u) || std::none_of(mExclude, mExclude + Exclude, pred));
+}
+
+template <ecs::size_t Include, ecs::size_t Exclude>
+void ecs::view<Include, Exclude>::iterator::seek_next() {
+    for(; mIt != mInclude[Include - 1u]->end() && !valid(*mIt); ++mIt) {
+    }
 }
 template <ecs::size_t Include, ecs::size_t Exclude>
 typename ecs::view<Include, Exclude>::iterator &ecs::view<Include, Exclude>::iterator::operator++() noexcept {
     ECS_PROFILE;
-    if(mIt == mEnd) {
-        return *this;
-    }
     ++mIt;
-    for(; mIt != mEnd && !valid(*mIt); ++mIt) {
-    }
+    seek_next();
     return *this;
 }
 template <ecs::size_t Include, ecs::size_t Exclude>
 typename ecs::view<Include, Exclude>::iterator ecs::view<Include, Exclude>::iterator::operator++(int) const noexcept {
-    return ++iterator(this);
+    return ++iterator(*this);
 }
-
 template <ecs::size_t Include, ecs::size_t Exclude>
 typename ecs::view<Include, Exclude>::iterator::reference ecs::view<Include, Exclude>::iterator::operator*() const noexcept {
     return *mIt;
 }
-
 template <ecs::size_t Include, ecs::size_t Exclude>
 constexpr bool ecs::view<Include, Exclude>::iterator::operator==(iterator const &other) const noexcept {
     return mIt == other.mIt;
@@ -692,11 +704,11 @@ constexpr bool ecs::view<Include, Exclude>::iterator::operator!=(iterator const 
 
 template <ecs::size_t Include, ecs::size_t Exclude>
 typename ecs::view<Include, Exclude>::iterator ecs::view<Include, Exclude>::begin() const noexcept {
-    return iterator(mInclude[Include - 1u]->begin(), mInclude[Include - 1u]->end(), mInclude.data(), mExclude.data());
+    return iterator(mInclude[Include - 1u]->begin(), mInclude.data(), mExclude.data());
 }
 template <ecs::size_t Include, ecs::size_t Exclude>
 typename ecs::view<Include, Exclude>::iterator ecs::view<Include, Exclude>::end() const noexcept {
-    return iterator(mInclude[Include - 1u]->end(), mInclude[Include - 1u]->end(), mInclude.data(), mExclude.data());
+    return iterator(mInclude[Include - 1u]->end(), mInclude.data(), mExclude.data());
 }
 template <ecs::size_t Include, ecs::size_t Exclude>
 ecs::size_t ecs::view<Include, Exclude>::size() const noexcept {

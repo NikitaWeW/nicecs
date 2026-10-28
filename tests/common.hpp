@@ -41,6 +41,7 @@ struct MoveOnly {
     MoveOnly &operator=(MoveOnly const &) = delete;
     MoveOnly &operator=(MoveOnly &&) = default;
 };
+struct Original {};
 
 using ecs::operator""_hs;
 inline void addEntities(ecs::registry &reg, ecs::size_t size = 10'000) {
@@ -50,11 +51,25 @@ inline void addEntities(ecs::registry &reg, ecs::size_t size = 10'000) {
     for(std::size_t i = 0; i < size; ++i) {
         auto e = reg.create();
 
-        if(dist(rng)) reg.emplace<Position>(e, float(i), float(i + 1));
-        if(dist(rng)) reg.emplace<Velocity>(e, float(i) * 123, float(i) * 312);
-        if(dist(rng)) reg.emplace<Health>(e, unsigned(i) % 100);
-        if(dist(rng)) reg.storage<Position>("named"_hs).emplace(e, float(i*10.9-41), float(100 - i));
-        if(dist(rng)) reg.storage<Velocity>("named"_hs).emplace(e, float(i*21.5-83), float(14 - 0.4*i));
-        if(dist(rng)) reg.storage<Health>("named1"_hs).emplace(e, unsigned(i) % 99);
+        // if(dist(rng)) reg.emplace<Position>(e, float(i), float(i + 1));
+        // if(dist(rng)) reg.emplace<Velocity>(e, float(i) * 123, float(i) * 312);
+        // if(dist(rng)) reg.emplace<Health>(e, unsigned(i) % 100);
+        // if(dist(rng)) reg.emplace<Tag>(e, "this is a tag for " + std::to_string(i) + "th entity");
+        // if(dist(rng)) reg.storage<Position>("named"_hs).emplace(e, float(i*10.9-41), float(100 - i));
+        // if(dist(rng)) reg.storage<Velocity>("named"_hs).emplace(e, float(i*21.5-83), float(14 - 0.4*i));
+        // if(dist(rng)) reg.storage<Health>("named1"_hs).emplace(e, unsigned(i) % 99);
+        // if(dist(rng)) reg.storage<Tag>("named2"_hs).emplace(e, "this is another tag for " + std::to_string(i) + "th entity");
+
+        // clang-format off
+        if(dist(rng)) reg.emplace<Position>(e, 1.0f, 2.0f);
+        if(dist(rng)) reg.emplace<Velocity>(e, 3.0f, 4.0f);
+        if(dist(rng)) reg.emplace<Health>(e, 99u);
+        if(dist(rng)) reg.emplace<Tag>(e, "this is a tag");
+        if(dist(rng)) reg.storage<Position>("named"_hs).emplace(e, 5.0f, 6.0f);
+        if(dist(rng)) reg.storage<Velocity>("named"_hs).emplace(e, 7.0f, 8.0f);
+        if(dist(rng)) reg.storage<Health>("named1"_hs).emplace(e, 98u);
+        if(dist(rng)) reg.storage<Tag>("named2"_hs).emplace(e, "this is another tag");
+        reg.emplace<Original>(e);
+        // clang-format on
     }
 }
