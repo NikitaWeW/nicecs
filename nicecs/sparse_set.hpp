@@ -344,7 +344,7 @@ inline void ecs::sparse_set<dense_t, allocator_t>::reserve(std::size_t newCapaci
     ECS_PROFILE;
     mDense.reserve(newCapacity);
     mDenseToSparse.reserve(newCapacity);
-    mSparse.reserve((newCapacity + mPageSize - 1) / mPageSize);
+    // mSparse.reserve((newCapacity + mPageSize - 1) / mPageSize);
 }
 template <typename dense_t, typename allocator_t>
 inline void ecs::sparse_set<dense_t, allocator_t>::shrink_to_fit() {
