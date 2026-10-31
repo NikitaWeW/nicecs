@@ -120,8 +120,10 @@ public:
         ecs::size_t mIt = 0;
         // In case entity is deleted from the pool
         reference mValue;
+        view_iterable const *mSmallest;
 
-        bool valid(entity const &e) const;
+        template <ecs::size_t... IncludeSeq, ecs::size_t... ExcludeSeq>
+        bool valid(entity const &e, std::integer_sequence<ecs::size_t, IncludeSeq...>, std::integer_sequence<ecs::size_t, ExcludeSeq...>) const;
         void seek_next();
     public:
         iterator(ecs::size_t it, view_iterable const * const *include, view_iterable const * const *exclude);
@@ -472,7 +474,7 @@ inline ecs::impl::entity_manager::iterator ecs::impl::entity_manager::end() cons
 }
 
 template <typename T>
-ecs::component_array<T>::component_array(): sparse_set<T>((CAPACITY + sizeof(T) - 1) / sizeof(T), PAGE_SIZE) {
+inline ecs::component_array<T>::component_array(): sparse_set<T>((CAPACITY + sizeof(T) - 1) / sizeof(T), PAGE_SIZE) {
 }
 template <typename T>
 inline void ecs::component_array<T>::erase(entity const &entity) {
@@ -571,11 +573,11 @@ inline ecs::sparse_set<std::unique_ptr<ecs::impl::component_storage>> const &ecs
 }
 
 template <typename T>
-ecs::component_array<T> const &ecs::registry::storage(component_id id) const {
+inline ecs::component_array<T> const &ecs::registry::storage(component_id id) const {
     return *mComponentManager.try_emplace<T>(combine_hash(get_component_id<T>(), id));
 }
 template <typename T>
-ecs::component_array<T> &ecs::registry::storage(ecs::component_id id) {
+inline ecs::component_array<T> &ecs::registry::storage(ecs::component_id id) {
     return *mComponentManager.try_emplace<T>(combine_hash(get_component_id<T>(), id));
 }
 inline ecs::entity ecs::registry::create() {
@@ -651,83 +653,86 @@ inline ecs::registry::iterator ecs::registry::begin() const {
 inline ecs::registry::iterator ecs::registry::end() const {
     return mEntityManager.end();
 }
+
 template <ecs::size_t Include, ecs::size_t Exclude>
-constexpr ecs::view<Include, Exclude>::view(std::array<view_iterable const *, Include> &&include,
+inline constexpr ecs::view<Include, Exclude>::view(std::array<view_iterable const *, Include> &&include,
     std::array<view_iterable const *, Exclude> &&exclude) noexcept: mInclude(std::move(include)), mExclude(std::move(exclude)) {
     if constexpr(Include > 1u) {
-        auto &smallest = *std::min_element(mInclude.begin(), mInclude.end(),
-            [](auto const &lhs, auto const &rhs) { return lhs->size() < rhs->size(); });
-        std::swap(smallest, mInclude.back());
+        std::sort(mInclude.begin(), mInclude.end(), [](auto const &lhs, auto const &rhs) { return lhs->size() < rhs->size(); });
+    }
+    if constexpr(Exclude > 1u) {
+        std::sort(mExclude.begin(), mExclude.end(), [](auto const &lhs, auto const &rhs) { return lhs->size() > rhs->size(); });
     }
 }
 template <ecs::size_t Include, ecs::size_t Exclude>
-ecs::view<Include, Exclude>::iterator::iterator(ecs::size_t it, view_iterable const * const *include, view_iterable const * const *exclude):
+inline ecs::view<Include, Exclude>::iterator::iterator(ecs::size_t it, view_iterable const * const *include, view_iterable const * const *exclude):
     mInclude(include), mExclude(exclude), mIt(it) {
+    mSmallest = mInclude[Include - 1u];
     seek_next();
 }
 template <ecs::size_t Include, ecs::size_t Exclude>
-bool ecs::view<Include, Exclude>::iterator::valid(entity const &e) const {
+template <ecs::size_t... IncludeSeq, ecs::size_t... ExcludeSeq>
+inline bool ecs::view<Include, Exclude>::iterator::valid(entity const &e, std::integer_sequence<ecs::size_t, IncludeSeq...>,
+    std::integer_sequence<ecs::size_t, ExcludeSeq...>) const {
     ECS_PROFILE;
-    auto pred = [&e](auto const &pool) { return pool->contains(e); };
-    return ((Include == 1u) || std::all_of(mInclude, mInclude + Include - 1u, pred)) &&
-           ((Exclude == 0u) || std::none_of(mExclude, mExclude + Exclude, pred));
+    return (!mExclude[ExcludeSeq]->contains(e) && ...) && (mInclude[IncludeSeq + 1u]->contains(e) && ...);
 }
 
 template <ecs::size_t Include, ecs::size_t Exclude>
-void ecs::view<Include, Exclude>::iterator::seek_next() {
+inline void ecs::view<Include, Exclude>::iterator::seek_next() {
     ECS_PROFILE;
-    while(mIt != mInclude[Include - 1u]->size()) {
-        mValue = mInclude[Include - 1u]->begin()[mIt];
+    while(mIt != mSmallest->size()) {
+        mValue = mSmallest->begin()[mIt];
 
-        if(valid(mValue)) {
+        if(valid(mValue, std::make_integer_sequence<ecs::size_t, Include - 1u>{ }, std::make_integer_sequence<ecs::size_t, Exclude>{ })) {
             return;
-        } 
+        }
 
         ++mIt;
     }
 }
 template <ecs::size_t Include, ecs::size_t Exclude>
-typename ecs::view<Include, Exclude>::iterator &ecs::view<Include, Exclude>::iterator::operator++() noexcept {
+inline typename ecs::view<Include, Exclude>::iterator &ecs::view<Include, Exclude>::iterator::operator++() noexcept {
     ECS_PROFILE;
     // If the entity at the iterator changed, the previous entity was removed.
     // Storage performed swap and pop and the current iterator contains new valid entity.
     // Do not increment in this case.
-    if(mValue == mInclude[Include - 1u]->begin()[mIt]) {
+    if(mValue == mSmallest->begin()[mIt]) {
         ++mIt;
     }
     seek_next();
     return *this;
 }
 template <ecs::size_t Include, ecs::size_t Exclude>
-typename ecs::view<Include, Exclude>::iterator ecs::view<Include, Exclude>::iterator::operator++(int) noexcept {
+inline typename ecs::view<Include, Exclude>::iterator ecs::view<Include, Exclude>::iterator::operator++(int) noexcept {
     ECS_PROFILE;
     auto original = *this;
     this->operator++();
     return original;
 }
 template <ecs::size_t Include, ecs::size_t Exclude>
-typename ecs::view<Include, Exclude>::iterator::reference ecs::view<Include, Exclude>::iterator::operator*() const noexcept {
+inline typename ecs::view<Include, Exclude>::iterator::reference ecs::view<Include, Exclude>::iterator::operator*() const noexcept {
     return mValue;
 }
 template <ecs::size_t Include, ecs::size_t Exclude>
-constexpr bool ecs::view<Include, Exclude>::iterator::operator==(iterator const &other) const noexcept {
+inline constexpr bool ecs::view<Include, Exclude>::iterator::operator==(iterator const &other) const noexcept {
     return mIt == other.mIt;
 }
 template <ecs::size_t Include, ecs::size_t Exclude>
-constexpr bool ecs::view<Include, Exclude>::iterator::operator!=(iterator const &other) const noexcept {
+inline constexpr bool ecs::view<Include, Exclude>::iterator::operator!=(iterator const &other) const noexcept {
     return !operator==(other);
 }
 
 template <ecs::size_t Include, ecs::size_t Exclude>
-typename ecs::view<Include, Exclude>::iterator ecs::view<Include, Exclude>::begin() const noexcept {
+inline typename ecs::view<Include, Exclude>::iterator ecs::view<Include, Exclude>::begin() const noexcept {
     return iterator(0, mInclude.data(), mExclude.data());
 }
 template <ecs::size_t Include, ecs::size_t Exclude>
-typename ecs::view<Include, Exclude>::iterator ecs::view<Include, Exclude>::end() const noexcept {
+inline typename ecs::view<Include, Exclude>::iterator ecs::view<Include, Exclude>::end() const noexcept {
     return iterator(mInclude[Include - 1u]->size(), mInclude.data(), mExclude.data());
 }
 template <ecs::size_t Include, ecs::size_t Exclude>
-ecs::size_t ecs::view<Include, Exclude>::size() const noexcept {
+inline ecs::size_t ecs::view<Include, Exclude>::size() const noexcept {
     return mInclude[Include - 1u]->size();
 }
 
