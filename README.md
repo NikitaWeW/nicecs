@@ -1,4 +1,4 @@
-Actually, its just an EC (entity component) as the library provides no systems api. Nonetheless, i use the ecs term as it is more common.
+Actually, its just an EC (entity component), as the library provides no systems utilities. Nonetheless, I use the term ecs as it is more common.
 
 ## Features
 
@@ -8,15 +8,7 @@ Actually, its just an EC (entity component) as the library provides no systems a
 
 ---
 
-*Note: the git tags / releases might be outdated, just use latest commit*
-
-## Documentation
-Documentation is generated using doxygen. Simply run
-
-```sh
-doxygen
-```
-in the root folder.
+<!-- *Note: the git tags / releases might be outdated, just use latest commit* -->
 
 ## Usage
 
@@ -38,29 +30,25 @@ int main()
     // Registry keeps track of all the entities and stores their component data
     ecs::registry registry;
 
-    for(auto i = 0u; i < 10u; ++i) 
-    {
+    for(auto i = 0u; i < 10u; ++i) {
         // Make an entity
-        const auto entity = registry.create();
+        ecs::entity entity = registry.create();
         // Add a component to an entity
-        registry.emplace<position>(entity, i * 1.0f, i * 2.5f);
-        if(i % 2 == 0) 
-        { 
-            registry.emplace<velocity>(entity, i * 0.6f, i * -0.3f); 
+        registry.emplace<Position>(entity, i * 1.f, i * 1.f);
+        if(i % 2 == 0) {
+            registry.emplace<Velocity>(entity, i * .1f, i * .1f);
         }
-        if(i == 8)
-        {
-            registry.emplace<tag>(entity);
+        if(i == 8) {
+            registry.emplace<Tag>(entity);
         }
     }
 
-    // Get a list of entities that satisfy requirements
-    auto view = registry.view<position, velocity>(ecs::exclude_t<tag>{});
+    // Get the entities that satisfy requirements
+    ecs::view view = registry.view<Position, Velocity>(ecs::exclude<Tag>{ });
 
-    for(auto const &e : view) 
-    {
-        registry.get<position>(e).x += registry.get<velocity>(e).dx;
-        registry.get<position>(e).y += registry.get<velocity>(e).dy;
+    for(auto const &e : view) {
+        registry.get<Position>(e).x += registry.get<Velocity>(e).dx;
+        registry.get<Position>(e).y += registry.get<Velocity>(e).dy;
     }
 
     // You can also use sparse set containers separately
@@ -71,6 +59,10 @@ int main()
     positions.erase(10);
 }
 ```
+
+## Documentation
+There are doxygen comments I guess. 
+The usage is pretty straight forward and the library is not that big.
 
 ## Tests and benchmarks
 Build the cmake project in the tests directory:
@@ -83,16 +75,20 @@ build/benchmarks
 
 ## Thread safety
 The library is not synchronized. Even if it was, it still would be unusable in multithreaded applications, because of stale data issues.
-
 You will need to manually synchronize the usage the library.
 
-## Older development
+<!-- ## Older development
 
 - https://github.com/NikitaWeW/breakout/blob/45cb3f0df4f6f5712acfa4df22b055edc37b8200/src/utils/ECS.hpp
 - https://github.com/NikitaWeW/breakout/tree/locked-ecs
-- https://github.com/NikitaWeW/ecs (this repo)
+- https://github.com/NikitaWeW/nicecs / https://codeberg.org/nikitam/nicecs (this repo) -->
+
+## Some ECS resources:
+
+- [Austin Morlan’s ECS design.](https://austinmorlan.com/posts/entity_component_system)
+- [EnTT library.](https://github.com/skypjack/entt)
+- [ECS faq.](Https://github.com/SanderMertens/ecs-faq)
 
 ---
 
-- Austin Morlan’s ECS design: https://austinmorlan.com/posts/entity_component_system  
-- EnTT library: https://github.com/skypjack/entt
+*No generative AI was used.*

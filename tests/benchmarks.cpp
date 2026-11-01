@@ -1,6 +1,6 @@
 #include "catch2/catch_test_macros.hpp"
 #include "catch2/benchmark/catch_benchmark.hpp"
-#include "types.hpp"
+#include "common.hpp"
 #include "nicecs/ecs.hpp"
 
 #include <random>
@@ -8,62 +8,58 @@
 #include <string>
 #include <cstring>
 
-static constexpr std::size_t SIZE = 10'000;
-static ecs::registry make_registry() {
-    ecs::registry reg;
+TEST_CASE("ecs::sparse_set benchmarks", "[benchmark][ecs][ecs::sparse_set]") {
+    ecs::sparse_set<Position> s;
 
-    std::mt19937_64 rng(12345);
-    std::uniform_int_distribution<int> dist(0, 1);
+    uint64_t i = 0;
+    BENCHMARK("emplace") {
+        ++i;
+        return s.emplace(i, 3.6f * i, -2.4f * i);
+    };
 
-    for(std::size_t i = 0; i < SIZE; ++i) {
-        bool hasPos = dist(rng);
-        bool hasVel = dist(rng);
-        bool hasHealth = dist(rng);
-        bool hasData = dist(rng);
+    i = 0;
+    s.clear();
 
-        if(hasData) {
-            if(hasPos && hasVel && hasHealth)
-                reg.create(Position{float(i), float(i + 1)}, Velocity{float(i) * 123, float(i) * 312}, Health{unsigned(i) % 100});
-            else if(hasPos && hasVel) reg.create(Position{float(i), float(i + 1)}, Velocity{float(i) * 123, float(i) * 312});
-            else if(hasPos && hasHealth) reg.create(Position{float(i), float(i + 1)}, Health{unsigned(i) % 100});
-            else if(hasVel && hasHealth) reg.create(Velocity{float(i) * 123, float(i) * 312}, Health{unsigned(i) % 100});
-            else if(hasPos) reg.create(Position{float(i), float(i + 1)});
-            else if(hasVel) reg.create(Velocity{float(i) * 123, float(i) * 312});
-            else if(hasHealth) reg.create(Health{unsigned(i) % 100});
-            else reg.create<>();
-        } else {
-            if(hasPos && hasVel && hasHealth) reg.create<Position, Velocity, Health>();
-            else if(hasPos && hasVel) reg.create<Position, Velocity>();
-            else if(hasPos && hasHealth) reg.create<Position, Health>();
-            else if(hasVel && hasHealth) reg.create<Velocity, Health>();
-            else if(hasPos) reg.create<Position>();
-            else if(hasVel) reg.create<Velocity>();
-            else if(hasHealth) reg.create<Health>();
-            else reg.create<>();
-        }
-    }
+    BENCHMARK("emplace and erase") {
+        ++i;
+        s.emplace(i, 3.6f * i, -2.4f * i);
+        s.erase(i);
+        return i;
+    };
 
-    return reg;
+    i = 0;
+    s.clear();
+
+    BENCHMARK("emplace and get") {
+        ++i;
+        s.emplace(i, 3.6f * i, -2.4f * i);
+        return s.get(i);
+    };
 }
-
 TEST_CASE("ecs::registry benchmarks", "[benchmark][ecs][ecs::registry]") {
     {
-        auto const registry = make_registry();
-        BENCHMARK("view") {
-            auto v = registry.view<Position, Velocity>(ecs::exclude<Tag, Health>{});
-            return v.size();
+        ecs::registry reg;
+        addEntities(reg, 100'000);
+        BENCHMARK("view (100'000)") {
+            // clang-format off
+            auto v = ecs::make_view(
+                std::tuple(&reg.storage<Position>(), &reg.storage<Velocity>(), &reg.storage<Position>("named"_hs), &reg.storage<Velocity>("named"_hs)),
+                std::tuple(&reg.storage<Health>(), &reg.storage<Tag>(), &reg.storage<Health>("named1"_hs), &reg.storage<Tag>("named2"_hs))
+            );
+            // clang-format on
+
+            ecs::size_t size = 0;
+            for(auto it = v.begin(); it != v.end(); ++it) {
+                ++size;
+            }
+
+            return size;
         };
-    }
-    {
-        auto a = make_registry();
-        auto b = make_registry();
-        auto const e = b.create<Position>();
-        BENCHMARK("copy") { return a.copy(e, b); };
     }
     {
         ecs::registry registry;
         BENCHMARK("create and emplace") {
-            auto e = registry.create<>();
+            auto e = registry.create();
             registry.emplace<Position>(e, 1.0f, 2.0f);
             return e;
         };
@@ -77,6 +73,8 @@ TEST_CASE("ecs::registry benchmarks", "[benchmark][ecs][ecs::registry]") {
         };
     }
     {
-        BENCHMARK("create registry") { return ecs::registry{}; };
+        BENCHMARK("create registry") {
+            return ecs::registry{ };
+        };
     }
 }
