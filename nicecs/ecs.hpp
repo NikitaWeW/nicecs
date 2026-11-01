@@ -58,8 +58,6 @@ namespace ecs {
 using entity = std::uint32_t;
 /// @brief Component ID.
 using component_id = std::uint32_t;
-/// @brief Size type.
-using size_t = std::uint64_t;
 
 /// @brief Get an id for each component type.
 template <typename T>
@@ -167,11 +165,12 @@ namespace impl {
     /// @brief Manages entities duh.
     class entity_manager {
     private:
-        sparse_set<ecs::size_t> mEntities;
+        std::vector<bool> mEntities;
         std::vector<entity> mAvailableEntities;
         entity mNextID = 1;
+        ecs::size_t mSize = 0;
     public:
-        using iterator = std::remove_reference_t<decltype(mEntities.sparse())>::const_iterator;
+        using iterator = std::remove_reference_t<decltype(mEntities)>::const_iterator;
         explicit entity_manager();
         ~entity_manager() = default;
 
@@ -443,7 +442,11 @@ inline ecs::entity ecs::impl::entity_manager::emplace() {
         entity = mAvailableEntities.back();
         mAvailableEntities.pop_back();
     }
-    mEntities.emplace(entity, 0);
+    if(entity > mEntities.size()) {
+        mEntities.resize(std::max<ecs::size_t>(mEntities.size() * 2, entity), 0);
+    }
+    mEntities[entity-1] = 1;
+    ++mSize;
 
     return entity;
 }
@@ -451,26 +454,28 @@ inline void ecs::impl::entity_manager::erase(entity const &entity) {
     ECS_PROFILE;
     ECS_ASSERT(contains(entity), "Invalid entity identifier");
     mAvailableEntities.push_back(entity);
-    mEntities.erase(entity);
+    mEntities[entity-1] = 0;
+    --mSize;
 }
 inline bool ecs::impl::entity_manager::contains(entity const &entity) const {
     ECS_PROFILE;
-    return 1 <= entity && entity < mNextID && mEntities.contains(entity);
+    return 1 <= entity && entity < mNextID && (entity <= mEntities.size() && mEntities[entity-1] != 0);
 }
 inline void ecs::impl::entity_manager::clear() {
     ECS_PROFILE;
     mEntities.clear();
     mAvailableEntities.clear();
     mNextID = 1;
+    mSize = 0;
 }
 inline ecs::size_t ecs::impl::entity_manager::size() const {
-    return mEntities.size();
+    return mSize;
 }
 inline ecs::impl::entity_manager::iterator ecs::impl::entity_manager::begin() const {
-    return mEntities.sparse().begin();
+    return mEntities.begin();
 }
 inline ecs::impl::entity_manager::iterator ecs::impl::entity_manager::end() const {
-    return mEntities.sparse().end();
+    return mEntities.end();
 }
 
 template <typename T>
@@ -667,7 +672,7 @@ inline constexpr ecs::view<Include, Exclude>::view(std::array<view_iterable cons
 template <ecs::size_t Include, ecs::size_t Exclude>
 inline ecs::view<Include, Exclude>::iterator::iterator(ecs::size_t it, view_iterable const * const *include, view_iterable const * const *exclude):
     mInclude(include), mExclude(exclude), mIt(it) {
-    mSmallest = mInclude[Include - 1u];
+    mSmallest = mInclude[0];
     seek_next();
 }
 template <ecs::size_t Include, ecs::size_t Exclude>
@@ -729,11 +734,11 @@ inline typename ecs::view<Include, Exclude>::iterator ecs::view<Include, Exclude
 }
 template <ecs::size_t Include, ecs::size_t Exclude>
 inline typename ecs::view<Include, Exclude>::iterator ecs::view<Include, Exclude>::end() const noexcept {
-    return iterator(mInclude[Include - 1u]->size(), mInclude.data(), mExclude.data());
+    return iterator(mInclude[0]->size(), mInclude.data(), mExclude.data());
 }
 template <ecs::size_t Include, ecs::size_t Exclude>
 inline ecs::size_t ecs::view<Include, Exclude>::size() const noexcept {
-    return mInclude[Include - 1u]->size();
+    return mInclude[0]->size();
 }
 
 // Syntax sugar

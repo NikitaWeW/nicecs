@@ -30,29 +30,25 @@ int main()
     // Registry keeps track of all the entities and stores their component data
     ecs::registry registry;
 
-    for(auto i = 0u; i < 10u; ++i) 
-    {
+    for(auto i = 0u; i < 10u; ++i) {
         // Make an entity
-        const auto entity = registry.create();
+        ecs::entity entity = registry.create();
         // Add a component to an entity
-        registry.emplace<position>(entity, i * 1.0f, i * 2.5f);
-        if(i % 2 == 0) 
-        { 
-            registry.emplace<velocity>(entity, i * 0.6f, i * -0.3f); 
+        registry.emplace<Position>(entity, i * 1.f, i * 1.f);
+        if(i % 2 == 0) {
+            registry.emplace<Velocity>(entity, i * .1f, i * .1f);
         }
-        if(i == 8)
-        {
-            registry.emplace<tag>(entity);
+        if(i == 8) {
+            registry.emplace<Tag>(entity);
         }
     }
 
-    // Get a list of entities that satisfy requirements
-    auto view = registry.view<position, velocity>(ecs::exclude_t<tag>{});
+    // Get the entities that satisfy requirements
+    ecs::view view = registry.view<Position, Velocity>(ecs::exclude<Tag>{ });
 
-    for(auto const &e : view) 
-    {
-        registry.get<position>(e).x += registry.get<velocity>(e).dx;
-        registry.get<position>(e).y += registry.get<velocity>(e).dy;
+    for(auto const &e : view) {
+        registry.get<Position>(e).x += registry.get<Velocity>(e).dx;
+        registry.get<Position>(e).y += registry.get<Velocity>(e).dy;
     }
 
     // You can also use sparse set containers separately

@@ -2,6 +2,7 @@
 #include <random>
 #include <stdexcept>
 #include <string>
+#include <iostream>
 
 struct EcsException : std::logic_error {
     EcsException() = delete;
