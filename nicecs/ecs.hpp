@@ -58,6 +58,8 @@ namespace ecs {
 using entity = std::uint32_t;
 /// @brief Component ID.
 using component_id = std::uint32_t;
+/// @brief Entity version.
+using version_t = std::uint32_t;
 
 /// @brief Get an id for each component type.
 template <typename T>
@@ -165,12 +167,13 @@ namespace impl {
     /// @brief Manages entities duh.
     class entity_manager {
     private:
-        std::vector<bool> mEntities;
+        std::vector<bool> mAliveEntities;
+        std::vector<version_t> mVersions;
         std::vector<entity> mAvailableEntities;
         entity mNextID = 1;
         ecs::size_t mSize = 0;
     public:
-        using iterator = std::remove_reference_t<decltype(mEntities)>::const_iterator;
+        using iterator = std::remove_reference_t<decltype(mAliveEntities)>::const_iterator;
         explicit entity_manager();
         ~entity_manager() = default;
 
@@ -192,6 +195,9 @@ namespace impl {
 
         /// @brief Get the number of entities alive in a manager.
         ecs::size_t size() const;
+
+        /// @brief Get the entity version (the number of times this id is used in emplace())
+        version_t version(ecs::entity const &entity) const;
 
         /// @brief
         iterator begin() const;
@@ -341,6 +347,9 @@ public:
     /// because the storage could be accessed without notifying the manager.
     ecs::size_t size(entity const &entity) const;
 
+    /// @copydoc impl::entity_manager::version
+    version_t version(entity const &entity) const;
+
     /// @brief Check if an entity has no components.
     /// @throws If the entity is not a valid identifier.
     /// @return True if the entity is empty, false otherwise.
@@ -442,10 +451,12 @@ inline ecs::entity ecs::impl::entity_manager::emplace() {
         entity = mAvailableEntities.back();
         mAvailableEntities.pop_back();
     }
-    if(entity > mEntities.size()) {
-        mEntities.resize(std::max<ecs::size_t>(mEntities.size() * 2, entity), 0);
+    if(entity > mAliveEntities.size()) {
+        mAliveEntities.resize(std::max<ecs::size_t>(mAliveEntities.size() * 2, entity), 0);
+        mVersions.resize(std::max<ecs::size_t>(mAliveEntities.size() * 2, entity), 0);
     }
-    mEntities[entity-1] = 1;
+    mAliveEntities[entity-1u] = 1;
+    ++mVersions[entity-1u];
     ++mSize;
 
     return entity;
@@ -454,16 +465,17 @@ inline void ecs::impl::entity_manager::erase(entity const &entity) {
     ECS_PROFILE;
     ECS_ASSERT(contains(entity), "Invalid entity identifier");
     mAvailableEntities.push_back(entity);
-    mEntities[entity-1] = 0;
+    mAliveEntities[entity-1u] = 0;
     --mSize;
 }
 inline bool ecs::impl::entity_manager::contains(entity const &entity) const {
     ECS_PROFILE;
-    return 1 <= entity && entity < mNextID && (entity <= mEntities.size() && mEntities[entity-1] != 0);
+    return 1 <= entity && entity < mNextID && (entity <= mAliveEntities.size() && mAliveEntities[entity-1u] != 0);
 }
 inline void ecs::impl::entity_manager::clear() {
     ECS_PROFILE;
-    mEntities.clear();
+    mAliveEntities.clear();
+    mVersions.clear();
     mAvailableEntities.clear();
     mNextID = 1;
     mSize = 0;
@@ -471,11 +483,15 @@ inline void ecs::impl::entity_manager::clear() {
 inline ecs::size_t ecs::impl::entity_manager::size() const {
     return mSize;
 }
+inline ecs::version_t ecs::impl::entity_manager::version(entity const &entity) const {
+    ECS_ASSERT(contains(entity), "Invalid entity identifier");
+    return mVersions[entity-1u];
+}
 inline ecs::impl::entity_manager::iterator ecs::impl::entity_manager::begin() const {
-    return mEntities.begin();
+    return mAliveEntities.begin();
 }
 inline ecs::impl::entity_manager::iterator ecs::impl::entity_manager::end() const {
-    return mEntities.end();
+    return mAliveEntities.end();
 }
 
 template <typename T>
@@ -639,6 +655,9 @@ inline ecs::size_t ecs::registry::size(entity const &entity) const {
         }
     }
     return size;
+}
+inline ecs::version_t ecs::registry::version(entity const &entity) const {
+    return mEntityManager.version(entity);
 }
 inline ecs::size_t ecs::registry::size() const {
     ECS_PROFILE;

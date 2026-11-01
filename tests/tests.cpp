@@ -464,6 +464,17 @@ TEST_CASE("Views", "[ecs][ecs::view]") {
         REQUIRE(*viewVelServer.begin() == e3);
     }
 }
+TEST_CASE("Version", "[ecs][ecs::registry]") {
+    ecs::registry reg;
+    auto e1 = reg.create();
+    auto v1 = reg.version(e1);
+    REQUIRE(v1 == 1);
+    reg.destroy(e1);
+    auto e2 = reg.create();
+    REQUIRE(e1 == e2);
+    auto v2 = reg.version(e2);
+    REQUIRE(v2 == v1 + 1);
+}
 
 TEST_CASE("Registry example", "[ecs][ecs::registry]") {
     ecs::registry registry;
@@ -471,7 +482,6 @@ TEST_CASE("Registry example", "[ecs][ecs::registry]") {
     for(auto i = 0u; i < 10u; ++i) {
         ecs::entity entity = registry.create();
         registry.emplace<Position>(entity, i * 1.f, i * 1.f);
-        std::cout << i << ": " << entity << "\n";
         if(i % 2 == 0) {
             registry.emplace<Velocity>(entity, i * .1f, i * .1f);
         }
@@ -484,7 +494,6 @@ TEST_CASE("Registry example", "[ecs][ecs::registry]") {
 
     uint size = 0;
     for(auto const &e : view) {
-        std::cout << "ve " << e << "\n";
         ++size;
         registry.get<Position>(e).x += registry.get<Velocity>(e).dx; // component to get is not added
         registry.get<Position>(e).y += registry.get<Velocity>(e).dy;
