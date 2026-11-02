@@ -44,6 +44,10 @@ int main()
     }
 
     // Get the entities that satisfy requirements
+    // ecs::view has begin() and end() with custom view iterator that allows for 
+    // filtering entities on the fly without any memory allocations. For more details see comments.
+    // WARNING: esc::view::size() returns the size of the smallest component pool and is probably bigger than the actual view size.
+    // To get an actual view size you need to iterate over all the entities.
     ecs::view view = registry.view<Position, Velocity>(ecs::exclude<Tag>{ });
 
     for(auto const &e : view) {
@@ -59,6 +63,9 @@ int main()
     positions.erase(10);
 }
 ```
+
+Also keep in mind that the registry and the entities can be wrapped in custom classes for nicer syntax.
+For example, one can create oop-style entity class that keeps track of the parent registry, entity id and version.
 
 ## Documentation
 There are doxygen comments I guess. 
