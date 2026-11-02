@@ -89,6 +89,8 @@ public:
     virtual iterator end() const = 0;
 };
 
+class view_sentinel { };
+
 /// @brief Lightweight view on the component pools.
 /// Allows to efficiently iterate over entities containing required components, filtering excluded components.
 /// Is constructed using static arrays of abstract component pools (practically free).
@@ -134,15 +136,27 @@ public:
 
         constexpr bool operator==(iterator const &other) const noexcept;
         constexpr bool operator!=(iterator const &other) const noexcept;
+
+        bool operator==(view_sentinel const &) const noexcept;
+        bool operator!=(view_sentinel const &) const noexcept;
     };
 
     constexpr view(std::array<view_iterable const *, IncludeSize> &&mInclude,
         std::array<view_iterable const *, ExcludeSize> &&mExclude = { }) noexcept;
 
     iterator begin() const noexcept;
-    iterator end() const noexcept;
+    iterator endIt() const noexcept;
+    view_sentinel end() const noexcept;
+
+    /// @brief Returns the size of the smallest pool.
+    /// @warning May not represent the number of satisfying entities in the view!
     ecs::size_t size() const noexcept;
 };
+
+template <typename It>
+bool operator==(view_sentinel const &s, It const &it) noexcept;
+template <typename It>
+bool operator!=(view_sentinel const &s, It const &it) noexcept;
 
 template <typename T>
 class component_array;
@@ -455,8 +469,8 @@ inline ecs::entity ecs::impl::entity_manager::emplace() {
         mAliveEntities.resize(std::max<ecs::size_t>(mAliveEntities.size() * 2, entity), 0);
         mVersions.resize(std::max<ecs::size_t>(mAliveEntities.size() * 2, entity), 0);
     }
-    mAliveEntities[entity-1u] = 1;
-    ++mVersions[entity-1u];
+    mAliveEntities[entity - 1u] = 1;
+    ++mVersions[entity - 1u];
     ++mSize;
 
     return entity;
@@ -465,12 +479,12 @@ inline void ecs::impl::entity_manager::erase(entity const &entity) {
     ECS_PROFILE;
     ECS_ASSERT(contains(entity), "Invalid entity identifier");
     mAvailableEntities.push_back(entity);
-    mAliveEntities[entity-1u] = 0;
+    mAliveEntities[entity - 1u] = 0;
     --mSize;
 }
 inline bool ecs::impl::entity_manager::contains(entity const &entity) const {
     ECS_PROFILE;
-    return 1 <= entity && entity < mNextID && (entity <= mAliveEntities.size() && mAliveEntities[entity-1u] != 0);
+    return 1 <= entity && entity < mNextID && (entity <= mAliveEntities.size() && mAliveEntities[entity - 1u] != 0);
 }
 inline void ecs::impl::entity_manager::clear() {
     ECS_PROFILE;
@@ -485,7 +499,7 @@ inline ecs::size_t ecs::impl::entity_manager::size() const {
 }
 inline ecs::version_t ecs::impl::entity_manager::version(entity const &entity) const {
     ECS_ASSERT(contains(entity), "Invalid entity identifier");
-    return mVersions[entity-1u];
+    return mVersions[entity - 1u];
 }
 inline ecs::impl::entity_manager::iterator ecs::impl::entity_manager::begin() const {
     return mAliveEntities.begin();
@@ -746,14 +760,34 @@ template <ecs::size_t Include, ecs::size_t Exclude>
 inline constexpr bool ecs::view<Include, Exclude>::iterator::operator!=(iterator const &other) const noexcept {
     return !operator==(other);
 }
+template <ecs::size_t Include, ecs::size_t Exclude>
+inline bool ecs::view<Include, Exclude>::iterator::operator==(view_sentinel const &) const noexcept {
+    return mIt == mSmallest->size();
+}
+template <ecs::size_t Include, ecs::size_t Exclude>
+inline bool ecs::view<Include, Exclude>::iterator::operator!=(view_sentinel const &o) const noexcept {
+    return !operator==(o);
+}
+template <typename It>
+inline bool ecs::operator==(view_sentinel const &s, It const &it) noexcept {
+    return it == s;
+}
+template <typename It>
+inline bool ecs::operator!=(view_sentinel const &s, It const &it) noexcept {
+    return it != s;
+}
 
 template <ecs::size_t Include, ecs::size_t Exclude>
 inline typename ecs::view<Include, Exclude>::iterator ecs::view<Include, Exclude>::begin() const noexcept {
     return iterator(0, mInclude.data(), mExclude.data());
 }
 template <ecs::size_t Include, ecs::size_t Exclude>
-inline typename ecs::view<Include, Exclude>::iterator ecs::view<Include, Exclude>::end() const noexcept {
+inline typename ecs::view<Include, Exclude>::iterator ecs::view<Include, Exclude>::endIt() const noexcept {
     return iterator(mInclude[0]->size(), mInclude.data(), mExclude.data());
+}
+template <ecs::size_t Include, ecs::size_t Exclude>
+inline ecs::view_sentinel ecs::view<Include, Exclude>::end() const noexcept {
+    return ecs::view_sentinel{ };
 }
 template <ecs::size_t Include, ecs::size_t Exclude>
 inline ecs::size_t ecs::view<Include, Exclude>::size() const noexcept {

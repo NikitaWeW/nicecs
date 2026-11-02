@@ -314,10 +314,11 @@ TEST_CASE("EC tests", "[ecs][ecs::registry]") {
     }
 }
 
+// Too poor for c++ 20 
 template<typename V>
-ecs::size_t viewSize(V const &v) {
+ecs::size_t distance(V const &v) {
     ecs::size_t size = 0;
-    for(auto it = v.begin(); it != v.end(); ++it) {
+    for(auto _ : v) {
         ++size;
     }
     return size;
@@ -395,6 +396,7 @@ TEST_CASE("Views", "[ecs][ecs::view]") {
     }
 
     REQUIRE(size1 == size2);
+
     reg.clear();
 
     {
@@ -405,7 +407,7 @@ TEST_CASE("Views", "[ecs][ecs::view]") {
         auto e4 = reg.create<Velocity>();
 
         auto posView = reg.view<Position>();
-        REQUIRE(viewSize(posView) == 3);
+        REQUIRE(distance(posView) == 3);
         auto it = posView.begin();
         REQUIRE(it != posView.end());
         REQUIRE(reg.valid(*it++));
@@ -413,27 +415,27 @@ TEST_CASE("Views", "[ecs][ecs::view]") {
         ++it;
         REQUIRE(reg.valid(*it));
 
-        REQUIRE(std::find(posView.begin(), posView.end(), e0) == posView.end());
-        REQUIRE(std::find(posView.begin(), posView.end(), e1) != posView.end());
-        REQUIRE(std::find(posView.begin(), posView.end(), e2) != posView.end());
-        REQUIRE(std::find(posView.begin(), posView.end(), e3) != posView.end());
-        REQUIRE(std::find(posView.begin(), posView.end(), e4) == posView.end());
+        REQUIRE(std::find(posView.begin(), posView.endIt(), e0) == posView.endIt());
+        REQUIRE(std::find(posView.begin(), posView.endIt(), e1) != posView.endIt());
+        REQUIRE(std::find(posView.begin(), posView.endIt(), e2) != posView.endIt());
+        REQUIRE(std::find(posView.begin(), posView.endIt(), e3) != posView.endIt());
+        REQUIRE(std::find(posView.begin(), posView.endIt(), e4) == posView.endIt());
 
         auto posOnly = reg.view<Position>(ecs::exclude<Velocity>{ });
-        REQUIRE(viewSize(posOnly) == 2);
-        REQUIRE(std::find(posOnly.begin(), posOnly.end(), e0) == posOnly.end());
-        REQUIRE(std::find(posOnly.begin(), posOnly.end(), e1) != posOnly.end());
-        REQUIRE(std::find(posOnly.begin(), posOnly.end(), e2) == posOnly.end());
-        REQUIRE(std::find(posOnly.begin(), posOnly.end(), e3) != posOnly.end());
-        REQUIRE(std::find(posOnly.begin(), posOnly.end(), e4) == posOnly.end());
+        REQUIRE(distance(posOnly) == 2);
+        REQUIRE(std::find(posOnly.begin(), posOnly.endIt(), e0) == posOnly.endIt());
+        REQUIRE(std::find(posOnly.begin(), posOnly.endIt(), e1) != posOnly.endIt());
+        REQUIRE(std::find(posOnly.begin(), posOnly.endIt(), e2) == posOnly.endIt());
+        REQUIRE(std::find(posOnly.begin(), posOnly.endIt(), e3) != posOnly.endIt());
+        REQUIRE(std::find(posOnly.begin(), posOnly.endIt(), e4) == posOnly.endIt());
 
         auto velView = reg.view<Velocity>();
-        REQUIRE(viewSize(posOnly) == 2);
-        REQUIRE(std::find(velView.begin(), velView.end(), e0) == velView.end());
-        REQUIRE(std::find(velView.begin(), velView.end(), e1) == velView.end());
-        REQUIRE(std::find(velView.begin(), velView.end(), e2) != velView.end());
-        REQUIRE(std::find(velView.begin(), velView.end(), e3) == velView.end());
-        REQUIRE(std::find(velView.begin(), velView.end(), e4) != velView.end());
+        REQUIRE(distance(posOnly) == 2);
+        REQUIRE(std::find(velView.begin(), velView.endIt(), e0) == velView.endIt());
+        REQUIRE(std::find(velView.begin(), velView.endIt(), e1) == velView.endIt());
+        REQUIRE(std::find(velView.begin(), velView.endIt(), e2) != velView.endIt());
+        REQUIRE(std::find(velView.begin(), velView.endIt(), e3) == velView.endIt());
+        REQUIRE(std::find(velView.begin(), velView.endIt(), e4) != velView.endIt());
     }
 
     reg.clear();
