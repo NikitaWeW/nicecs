@@ -715,7 +715,6 @@ inline bool ecs::view<Include, Exclude>::iterator::valid(entity const &e, std::i
     ECS_PROFILE;
     return (!mExclude[ExcludeSeq]->contains(e) && ...) && (mInclude[IncludeSeq + 1u]->contains(e) && ...);
 }
-
 template <ecs::size_t Include, ecs::size_t Exclude>
 inline void ecs::view<Include, Exclude>::iterator::seek_next() {
     ECS_PROFILE;
@@ -735,7 +734,9 @@ inline typename ecs::view<Include, Exclude>::iterator &ecs::view<Include, Exclud
     // If the entity at the iterator changed, the previous entity was removed.
     // Storage performed swap and pop and the current iterator contains new valid entity.
     // Do not increment in this case.
-    if(mValue == mSmallest->begin()[mIt]) {
+    // Ugly fix for range based for loops. The iterator is incremented before the bounds check.
+    // ________________________ 
+    if(mIt != mSmallest->size() && mValue == mSmallest->begin()[mIt]) {
         ++mIt;
     }
     seek_next();
@@ -762,7 +763,7 @@ inline constexpr bool ecs::view<Include, Exclude>::iterator::operator!=(iterator
 }
 template <ecs::size_t Include, ecs::size_t Exclude>
 inline bool ecs::view<Include, Exclude>::iterator::operator==(view_sentinel const &) const noexcept {
-    return mIt == mSmallest->size();
+    return mIt >= mSmallest->size();
 }
 template <ecs::size_t Include, ecs::size_t Exclude>
 inline bool ecs::view<Include, Exclude>::iterator::operator!=(view_sentinel const &o) const noexcept {
