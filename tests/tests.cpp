@@ -326,80 +326,80 @@ ecs::size_t distance(V const &v) {
 
 TEST_CASE("Views", "[ecs][ecs::view]") {
     ecs::registry reg;
-    addEntities(reg, 100);
-
-    // auto view1 = reg.view<Position, Velocity>(ecs::exclude<Health, Tag>{ });
-    auto view = ecs::make_view(std::tuple(&reg.storage<Position>(), &reg.storage<Velocity>(), &reg.storage<Position>("named"_hs),
-                                    &reg.storage<Velocity>("named"_hs)),
-        std::tuple(&reg.storage<Health>(), &reg.storage<Tag>(), &reg.storage<Health>("named1"_hs), &reg.storage<Tag>("named2"_hs)));
-
-    ecs::size_t size1 = 0;
-    ecs::size_t size2 = 0;
-
-    for(auto it = view.begin(); it != view.end(); ++it) {
-        ecs::entity e = *it;
-        auto oldIt = it;
-        REQUIRE(reg.valid(*it));
-
-        REQUIRE(reg.storage<Position>().contains(*it));
-        REQUIRE(reg.storage<Velocity>().contains(*it));
-        REQUIRE(reg.storage<Position>("named"_hs).contains(*it));
-        REQUIRE(reg.storage<Velocity>("named"_hs).contains(*it));
-
-        REQUIRE_FALSE(reg.storage<Health>().contains(*it));
-        REQUIRE_FALSE(reg.storage<Tag>().contains(*it));
-        REQUIRE_FALSE(reg.storage<Health>("named"_hs).contains(*it));
-        REQUIRE_FALSE(reg.storage<Tag>("named"_hs).contains(*it));
-
-        if(reg.contains<Original>(e)) {
-            ++size1;
-
-            REQUIRE(reg.storage<Position>().get(*it) == Position{1.0f, 2.0f});
-            REQUIRE(reg.storage<Velocity>().get(*it) == Velocity{3.0f, 4.0f});
-            REQUIRE(reg.storage<Position>("named"_hs).get(*it) == Position{5.0f, 6.0f});
-            REQUIRE(reg.storage<Velocity>("named"_hs).get(*it) == Velocity{7.0f, 8.0f});
-
-            auto newe = reg.create();
-            reg.storage<Position>().emplace(newe, 9.0f, 10.0f);
-            reg.storage<Velocity>().emplace(newe, 11.0f, 12.0f);
-            reg.storage<Position>("named"_hs).emplace(newe, 13.0f, 14.0f);
-            reg.storage<Velocity>("named"_hs).emplace(newe, 16.0f, 17.0f);
-        } else {
-            ++size2;
-
-            REQUIRE(reg.storage<Position>().get(*it) == Position{9.0f, 10.0f});
-            REQUIRE(reg.storage<Velocity>().get(*it) == Velocity{11.0f, 12.0f});
-            REQUIRE(reg.storage<Position>("named"_hs).get(*it) == Position{13.0f, 14.0f});
-            REQUIRE(reg.storage<Velocity>("named"_hs).get(*it) == Velocity{16.0f, 17.0f});
+    
+    SECTION("View iterator persistence") {
+        addEntities(reg, 100);
+        // auto view1 = reg.view<Position, Velocity>(ecs::exclude<Health, Tag>{ });
+        auto view = ecs::make_view(std::tuple(&reg.storage<Position>(), &reg.storage<Velocity>(), &reg.storage<Position>("named"_hs),
+                                        &reg.storage<Velocity>("named"_hs)),
+            std::tuple(&reg.storage<Health>(), &reg.storage<Tag>(), &reg.storage<Health>("named1"_hs), &reg.storage<Tag>("named2"_hs)));
+    
+        ecs::size_t size1 = 0;
+        ecs::size_t size2 = 0;
+    
+        for(auto it = view.begin(); it != view.end(); ++it) {
+            ecs::entity e = *it;
+            auto oldIt = it;
+            REQUIRE(reg.valid(*it));
+    
+            REQUIRE(reg.storage<Position>().contains(*it));
+            REQUIRE(reg.storage<Velocity>().contains(*it));
+            REQUIRE(reg.storage<Position>("named"_hs).contains(*it));
+            REQUIRE(reg.storage<Velocity>("named"_hs).contains(*it));
+    
+            REQUIRE_FALSE(reg.storage<Health>().contains(*it));
+            REQUIRE_FALSE(reg.storage<Tag>().contains(*it));
+            REQUIRE_FALSE(reg.storage<Health>("named"_hs).contains(*it));
+            REQUIRE_FALSE(reg.storage<Tag>("named"_hs).contains(*it));
+    
+            if(reg.contains<Original>(e)) {
+                ++size1;
+    
+                REQUIRE(reg.storage<Position>().get(*it) == Position{1.0f, 2.0f});
+                REQUIRE(reg.storage<Velocity>().get(*it) == Velocity{3.0f, 4.0f});
+                REQUIRE(reg.storage<Position>("named"_hs).get(*it) == Position{5.0f, 6.0f});
+                REQUIRE(reg.storage<Velocity>("named"_hs).get(*it) == Velocity{7.0f, 8.0f});
+    
+                auto newe = reg.create();
+                reg.storage<Position>().emplace(newe, 9.0f, 10.0f);
+                reg.storage<Velocity>().emplace(newe, 11.0f, 12.0f);
+                reg.storage<Position>("named"_hs).emplace(newe, 13.0f, 14.0f);
+                reg.storage<Velocity>("named"_hs).emplace(newe, 16.0f, 17.0f);
+            } else {
+                ++size2;
+    
+                REQUIRE(reg.storage<Position>().get(*it) == Position{9.0f, 10.0f});
+                REQUIRE(reg.storage<Velocity>().get(*it) == Velocity{11.0f, 12.0f});
+                REQUIRE(reg.storage<Position>("named"_hs).get(*it) == Position{13.0f, 14.0f});
+                REQUIRE(reg.storage<Velocity>("named"_hs).get(*it) == Velocity{16.0f, 17.0f});
+            }
+    
+            reg.storage<Velocity>().erase(*it);
+            reg.storage<Position>("named"_hs).erase(*it);
+            reg.storage<Tag>().emplace(*it);
+            reg.storage<Health>("named"_hs).emplace(*it);
+    
+            REQUIRE(oldIt == it);
+            REQUIRE(e == *it);
+    
+            REQUIRE(reg.valid(*it));
+            reg.destroy(*it);
+            REQUIRE_FALSE(reg.valid(*it));
+            REQUIRE_FALSE(reg.valid(e));
+    
+            REQUIRE(oldIt == it);
+            REQUIRE(e == *it);
+    
+            REQUIRE_FALSE(reg.storage<Position>().contains(*it));
+            REQUIRE_FALSE(reg.storage<Velocity>().contains(*it));
+            REQUIRE_FALSE(reg.storage<Position>("named"_hs).contains(*it));
+            REQUIRE_FALSE(reg.storage<Velocity>("named"_hs).contains(*it));
         }
-
-        reg.storage<Velocity>().erase(*it);
-        reg.storage<Position>("named"_hs).erase(*it);
-        reg.storage<Tag>().emplace(*it);
-        reg.storage<Health>("named"_hs).emplace(*it);
-
-        REQUIRE(oldIt == it);
-        REQUIRE(e == *it);
-
-        REQUIRE(reg.valid(*it));
-        reg.destroy(*it);
-        REQUIRE_FALSE(reg.valid(*it));
-        REQUIRE_FALSE(reg.valid(e));
-
-        REQUIRE(oldIt == it);
-        REQUIRE(e == *it);
-
-        REQUIRE_FALSE(reg.storage<Position>().contains(*it));
-        REQUIRE_FALSE(reg.storage<Velocity>().contains(*it));
-        REQUIRE_FALSE(reg.storage<Position>("named"_hs).contains(*it));
-        REQUIRE_FALSE(reg.storage<Velocity>("named"_hs).contains(*it));
+    
+        REQUIRE(size1 == size2);
     }
 
-    REQUIRE(size1 == size2);
-
-    reg.clear();
-
-    {
+    SECTION("View element correctness") {
         auto e0 = reg.create();
         auto e1 = reg.create<Position>();
         auto e2 = reg.create<Position, Velocity>();
@@ -438,8 +438,7 @@ TEST_CASE("Views", "[ecs][ecs::view]") {
         REQUIRE(std::find(velView.begin(), velView.endIt(), e4) != velView.endIt());
     }
 
-    reg.clear();
-    {
+    SECTION("Named storage views") {
         auto e0 = reg.create();
         auto e1 = reg.create();
         auto e2 = reg.create();
@@ -464,6 +463,44 @@ TEST_CASE("Views", "[ecs][ecs::view]") {
         REQUIRE(*viewPosServer.begin() == e1);
         REQUIRE(*viewVelClient.begin() == e2);
         REQUIRE(*viewVelServer.begin() == e3);
+    }
+
+    SECTION("Range based for loops with storage modification") {
+        uint num = 20;
+        for(uint i = 0; i < num; ++i) {
+            reg.create<Tag>();
+        }
+
+        for(auto e : reg.view<Tag>()) {
+            REQUIRE(reg.valid(e));
+            REQUIRE(reg.contains<Tag>(e));
+            reg.erase<Tag>(e);
+            REQUIRE_FALSE(reg.contains<Tag>(e));
+            reg.emplace<Position>(e);
+        }
+
+        REQUIRE(distance(reg.view<Position>()) == num);
+        REQUIRE(distance(reg.view<Tag>()) == 0);
+
+        for(auto e : reg.view<Position>()) {
+            reg.emplace<Tag>(e);
+        }
+        REQUIRE(distance(reg.view<Tag>()) == num);
+
+        uint size1 = 0;
+        uint size2 = 0;
+
+        for(auto e : reg.view<Position>()) {
+            if(reg.contains<Tag>(e)) {
+                reg.create<Position>();
+                ++size1;
+            } else {
+                ++size2;
+            }
+        }
+
+        REQUIRE(size1 == num);
+        REQUIRE(size2 == num);
     }
 }
 TEST_CASE("Version", "[ecs][ecs::registry]") {
