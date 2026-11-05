@@ -20,9 +20,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
-#include <memory>
 #include <string_view>
 #include <type_traits>
+#include <unordered_map>
 #include <vector>
 #include <array>
 
@@ -65,16 +65,8 @@ using version_t = std::uint32_t;
 template <typename T>
 component_id get_component_id() noexcept;
 
+/// @brief Syntax sugar for easy string hashing (for storage id's).
 component_id operator""_hs(const char *str, ecs::size_t len);
-
-/// @brief Combine hashes.
-template <typename T>
-T combine_hash(T const &lhs, T const &rhs) noexcept;
-
-/// @brief Get a combined id of component type and name hash.
-/// Can be used for ecs::registry::storage<>().
-template <typename T>
-component_id get_component_id(std::string_view name) noexcept;
 
 /// @brief Exclusion type list.
 template <typename... T>
@@ -176,6 +168,22 @@ constexpr inline view<sizeof...(Include), sizeof...(Exclude)> make_view(std::tup
     // clang-format on
 }
 
+class component_storage : public view_iterable {
+public:
+    /// @brief Returns a pointer to the component data.
+    virtual void *data(entity const &entity) = 0;
+
+    /// @brief Returns a pointer to the component data.
+    virtual void const *data(entity const &entity) const = 0;
+
+    /// @brief Erase an entity's component.
+    /// @param entity An entity identifier.
+    virtual void erase(entity const &entity) = 0;
+
+    /// @brief Get the result of get_component_id<T>()
+    virtual component_id id() const = 0;
+};
+
 namespace impl {
 
     /// @brief Manages entities duh.
@@ -222,64 +230,91 @@ namespace impl {
 
     /// @brief Type erased sparse set.
     /// Is guaranteed to be a parent of ComponentArray
-    class component_storage : public view_iterable {
+    class component_pool : public component_storage {
     public:
-        component_storage() = default;
-        virtual ~component_storage() = default;
-
-        /// @brief Erase an entity's component.
-        /// @param entity An entity identifier.
-        virtual void erase(entity const &entity) = 0;
+        component_pool() = default;
+        virtual ~component_pool() = default;
 
         /// @brief Erases all elements.
         virtual void clear() = 0;
 
         /// @brief Create and returns a copy of the component array if the elements can be copied, nullptr otherwise.
-        virtual std::unique_ptr<component_storage> clone() const = 0;
+        /// @warning Delete the pointer manually.
+        virtual component_pool *clone() const = 0;
+    };
+
+    /// @brief idk anymore...
+    template <typename storage_t>
+    class iterable {
+    private:
+        storage_t *mStorage;
+    public:
+        inline iterable(storage_t *storage): mStorage(storage) {
+        }
+
+        auto begin() {
+            return mStorage->begin();
+        }
+        auto end() {
+            return mStorage->end();
+        }
+        auto begin() const {
+            return mStorage->begin();
+        }
+        auto end() const {
+            return mStorage->end();
+        }
     };
 
     /// @brief Manages components and their arrays. All components are destroyed automatically.
     class component_manager {
+    public:
+        // All elements can be converted to component_pool's, but are stored like this for ease of iteration.
+        using storage_type = std::unordered_map<component_id, component_storage *>;
     private:
-        sparse_set<std::unique_ptr<component_storage>> mComponentArrays;
+        storage_type mComponentArrays;
     public:
         component_manager() = default;
         component_manager(component_manager const &other);
         component_manager &operator=(component_manager const &other);
-        ~component_manager() = default;
+        component_manager(component_manager &&other) = default;
+        component_manager &operator=(component_manager &&other) = default;
+        ~component_manager();
 
         /// @brief Creates a new component pool.
         /// @tparam T The type of the component.
         /// @param id The pool id.
         template <typename T>
-        component_array<T> *emplace(component_id id = get_component_id<T>());
+        component_array<T> *emplace(component_id id);
 
         /// @brief If the pool does not exist, emplaces it, returns the existing pool otherwise.
         template <typename T>
-        component_array<T> *try_emplace(component_id id = get_component_id<T>());
+        component_array<T> *try_emplace(component_id id);
 
-        bool contains(component_id id = 0) const;
+        /// @brief Duh
+        bool contains(component_id id) const;
 
         /// @brief Notify component arrays that the entity is destroyed.
         /// @param entity A deleted entity identifier.
         void erase(entity const &entity) const;
 
-        /// @brief Get the component array associated with the given component type.
         template <typename T>
-        component_array<T> *get(component_id id = 0);
-        /// @copydoc get
+        component_array<T> *get(component_id id);
         template <typename T>
-        component_array<T> const *get(component_id id = 0) const;
+        component_array<T> const *get(component_id id) const;
 
-        sparse_set<std::unique_ptr<component_storage>> &storage();
-        sparse_set<std::unique_ptr<component_storage>> const &storage() const;
+        component_pool const *find(component_id id) const;
+        component_pool *find(component_id id);
+
+        storage_type &storage();
+        storage_type const &storage() const;
     };
 }; // namespace impl
 
 /// @brief Stores components of entities of a specific type as a sparse set.
 /// @tparam T The type of stored components.
 template <typename T>
-class component_array : public impl::component_storage, public sparse_set<T> {
+class component_array : public impl::component_pool /* , public component_storage, public view_iterable */, public sparse_set<T> {
 public:
     /// @brief The size of a component sparse page.
     static constexpr ecs::size_t PAGE_SIZE = 32;
@@ -288,7 +323,12 @@ public:
 
     explicit component_array();
 
-    /// @copydoc ecs::impl::component_storage::erase
+    /// @copydoc ecs::component_storage::data
+    void *data(entity const &entity) override;
+    /// @copydoc ecs::component_storage::data
+    void const *data(entity const &entity) const override;
+
+    /// @copydoc ecs::component_storage::erase
     void erase(entity const &entity) override;
 
     /// @copydoc ecs::view_iterareble::contains
@@ -297,14 +337,17 @@ public:
     /// @copydoc ecs::view_iterareble::size
     ecs::size_t size() const override;
 
-    /// @copydoc ecs::impl::component_storage::clear
+    /// @copydoc ecs::component_storage::id
+    component_id id() const override;
+
+    /// @copydoc ecs::impl::component_pool::clear
     void clear() override;
 
     view_iterable::iterator begin() const noexcept override;
     view_iterable::iterator end() const noexcept override;
 
-    /// @copydoc ecs::impl::component_storage::clone
-    std::unique_ptr<component_storage> clone() const override;
+    /// @copydoc ecs::impl::component_pool::clone
+    component_pool *clone() const override;
 };
 
 /// @brief An ECS interface.
@@ -324,13 +367,23 @@ public:
     registry &operator=(registry const &other);
     registry &operator=(registry &&other) noexcept;
 
-    /// @brief Get the component pool.
-    /// @param id Arbitrary id or a string hash (not combined with the type id)
+    /// @brief Get the component storage.
+    /// @param id Arbitrary id or a string hash (not combined with the type id). Must be unique.
     template <typename T>
-    component_array<T> const &storage(component_id id = 0) const;
+    component_array<T> const &storage(component_id id = get_component_id<T>()) const;
     /// @copydoc storage
     template <typename T>
-    component_array<T> &storage(component_id id = 0);
+    component_array<T> &storage(component_id id = get_component_id<T>());
+
+    /// @brief Find the component storage. Returns nullptr if not found.
+    component_storage *storage(component_id id);
+    /// @copydoc storage
+    component_storage const *storage(component_id id) const;
+
+    /// @brief Get all component pools.
+    impl::iterable<ecs::impl::component_manager::storage_type const> storage() const;
+    /// @copydoc storage
+    impl::iterable<ecs::impl::component_manager::storage_type> storage();
 
     /// @brief Create an entity.
     /// @return Unique valid entity id.
@@ -438,11 +491,6 @@ inline ecs::component_id ecs::get_component_id() noexcept {
     static const component_id id = impl::nextComponentId.fetch_add(1);
     return id;
 }
-template <typename T>
-inline T ecs::combine_hash(T const &lhs, T const &rhs) noexcept {
-    ECS_PROFILE;
-    return lhs ^ (rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2));
-}
 inline ecs::component_id ecs::operator""_hs(const char *str, ecs::size_t len) {
     ECS_PROFILE;
     auto res = std::hash<std::string_view>{ }(std::string_view(str, len));
@@ -512,6 +560,14 @@ template <typename T>
 inline ecs::component_array<T>::component_array(): sparse_set<T>((CAPACITY + sizeof(T) - 1) / sizeof(T), PAGE_SIZE) {
 }
 template <typename T>
+void *ecs::component_array<T>::data(entity const &entity) {
+    return &sparse_set<T>::get(entity);
+}
+template <typename T>
+void const *ecs::component_array<T>::data(entity const &entity) const {
+    return &sparse_set<T>::get(entity);
+}
+template <typename T>
 inline void ecs::component_array<T>::erase(entity const &entity) {
     ECS_PROFILE;
     if(sparse_set<T>::contains(entity))
@@ -526,6 +582,10 @@ template <typename T>
 inline ecs::size_t ecs::component_array<T>::size() const {
     ECS_PROFILE;
     return sparse_set<T>::size();
+}
+template <typename T>
+inline ecs::component_id ecs::component_array<T>::id() const {
+    return get_component_id<T>();
 }
 template <typename T>
 inline ecs::view_iterable::iterator ecs::component_array<T>::begin() const noexcept {
@@ -543,10 +603,10 @@ inline void ecs::component_array<T>::clear() {
     sparse_set<T>::clear();
 }
 template <typename T>
-inline std::unique_ptr<ecs::impl::component_storage> ecs::component_array<T>::clone() const {
+inline ecs::impl::component_pool *ecs::component_array<T>::clone() const {
     ECS_PROFILE;
     if constexpr(std::is_copy_constructible_v<T>) {
-        return std::unique_ptr<ecs::impl::component_storage>{ new ecs::component_array<T>{ *this } };
+        return new ecs::component_array<T>{ *this };
     }
     return nullptr;
 }
@@ -554,72 +614,109 @@ inline std::unique_ptr<ecs::impl::component_storage> ecs::component_array<T>::cl
 template <typename T>
 inline ecs::component_array<T> *ecs::impl::component_manager::emplace(component_id id) {
     ECS_PROFILE;
-    return static_cast<ecs::component_array<T> *>(mComponentArrays.emplace(id, std::make_unique<component_array<T>>()).get());
+    ECS_ASSERT(mComponentArrays.find(id) == mComponentArrays.end(), "Component pool already exists!");
+    return static_cast<ecs::component_array<T> *>(mComponentArrays.emplace(id, new component_array<T>()).first->second);
 }
 template <typename T>
 inline ecs::component_array<T> *ecs::impl::component_manager::try_emplace(component_id id) {
     ECS_PROFILE;
-    if(!mComponentArrays.contains(id)) {
+    if(mComponentArrays.find(id) == mComponentArrays.end()) {
         return emplace<T>(id);
     }
-    return get<T>(id);
+    auto array = get<T>(id);
+    ECS_ASSERT(array->id() == get_component_id<T>(), "Cannot use same id for different types!");
+    return array;
 }
 template <typename T>
 inline ecs::component_array<T> *ecs::impl::component_manager::get(component_id id) {
     ECS_PROFILE;
-    ECS_ASSERT(mComponentArrays.contains(id), "Component not registered before use");
-    if(!mComponentArrays.contains(id))
-        return nullptr;
-    return static_cast<component_array<T> *>(mComponentArrays.get(id).get());
+    if(mComponentArrays.find(id) != mComponentArrays.end()) {
+        auto array = static_cast<component_array<T> *>(mComponentArrays.at(id));
+        ECS_ASSERT(array->id() == get_component_id<T>(), "Incorrect id!");
+        return array;
+    }
+    return nullptr;
 }
 template <typename T>
 inline ecs::component_array<T> const *ecs::impl::component_manager::get(component_id id) const {
     ECS_PROFILE;
-    ECS_ASSERT(mComponentArrays.contains(id), "Component not registered before use");
-    if(!mComponentArrays.contains(id))
-        return nullptr;
-    return static_cast<component_array<T> const *>(mComponentArrays.get(id).get());
+    if(mComponentArrays.find(id) != mComponentArrays.end()) {
+        auto array = static_cast<component_array<T> const *>(mComponentArrays.at(id));
+        ECS_ASSERT(array->id() == get_component_id<T>(), "Incorrect id!");
+        return array;
+    }
+    return nullptr;
+}
+inline ecs::impl::component_pool const *ecs::impl::component_manager::find(component_id id) const {
+    ECS_PROFILE;
+    if(mComponentArrays.find(id) != mComponentArrays.end()) {
+        return static_cast<ecs::impl::component_pool const *>(mComponentArrays.at(id));
+    }
+    return nullptr;
+}
+inline ecs::impl::component_pool *ecs::impl::component_manager::find(component_id id) {
+    ECS_PROFILE;
+    if(mComponentArrays.find(id) != mComponentArrays.end()) {
+        return static_cast<ecs::impl::component_pool *>(mComponentArrays.at(id));
+    }
+    return nullptr;
 }
 inline ecs::impl::component_manager::component_manager(impl::component_manager const &other) {
     this->operator=(other);
 }
 inline ecs::impl::component_manager &ecs::impl::component_manager::operator=(impl::component_manager const &other) {
     ECS_PROFILE;
-    for(auto [id, ptr] : other.mComponentArrays) {
-        auto copy = ptr->clone();
-        if(copy) {
-            mComponentArrays.emplace(id, std::move(copy));
+    for(auto &[id, array] : other.mComponentArrays) {
+        if(component_pool *copy = static_cast<component_pool *>(array)->clone()) {
+            mComponentArrays.emplace(id, copy);
         }
     }
 
     return *this;
 }
-inline void ecs::impl::component_manager::erase(entity const &entity) const {
-    ECS_PROFILE;
-    for(auto &componentArray : mComponentArrays.dense()) {
-        componentArray->erase(entity);
+inline ecs::impl::component_manager::~component_manager() {
+    for(auto &[id, array] : mComponentArrays) {
+        delete static_cast<component_pool *>(array);
     }
 }
-inline ecs::sparse_set<std::unique_ptr<ecs::impl::component_storage>> &ecs::impl::component_manager::storage() {
+inline void ecs::impl::component_manager::erase(entity const &entity) const {
+    ECS_PROFILE;
+    for(auto &[id, array] : mComponentArrays) {
+        array->erase(entity);
+    }
+}
+inline ecs::impl::component_manager::storage_type &ecs::impl::component_manager::storage() {
     return mComponentArrays;
 }
-inline ecs::sparse_set<std::unique_ptr<ecs::impl::component_storage>> const &ecs::impl::component_manager::storage() const {
+inline ecs::impl::component_manager::storage_type const &ecs::impl::component_manager::storage() const {
     return mComponentArrays;
 }
 
 template <typename T>
 inline ecs::component_array<T> const &ecs::registry::storage(component_id id) const {
-    return *mComponentManager.try_emplace<T>(combine_hash(get_component_id<T>(), id));
+    return *mComponentManager.try_emplace<T>(id);
 }
 template <typename T>
 inline ecs::component_array<T> &ecs::registry::storage(ecs::component_id id) {
-    return *mComponentManager.try_emplace<T>(combine_hash(get_component_id<T>(), id));
+    return *mComponentManager.try_emplace<T>(id);
 }
+inline ecs::component_storage *ecs::registry::storage(component_id id) {
+    return mComponentManager.find(id);
+}
+inline ecs::component_storage const *ecs::registry::storage(component_id id) const {
+    return mComponentManager.find(id);
+}
+inline ecs::impl::iterable<ecs::impl::component_manager::storage_type const> ecs::registry::storage() const {
+    return &mComponentManager.storage();
+}
+inline ecs::impl::iterable<ecs::impl::component_manager::storage_type> ecs::registry::storage() {
+    return &mComponentManager.storage();
+}
+
 inline ecs::entity ecs::registry::create() {
     ECS_PROFILE;
     return mEntityManager.emplace();
 }
-
 inline ecs::registry::registry(registry const &other) {
     *this = other;
 }
@@ -654,8 +751,8 @@ inline bool ecs::registry::empty(entity const &entity) const {
 inline void ecs::registry::clear() {
     ECS_PROFILE;
     mEntityManager.clear();
-    for(ecs::size_t i = mComponentManager.storage().size(); i; --i) {
-        mComponentManager.storage().begin()[i - 1u].second->clear();
+    for(auto &[id, array] : mComponentManager.storage()) {
+        static_cast<impl::component_pool *>(array)->clear();
     }
 }
 inline ecs::size_t ecs::registry::size(entity const &entity) const {
@@ -680,11 +777,6 @@ inline ecs::size_t ecs::registry::size() const {
 inline bool ecs::registry::empty() const {
     return size() == 0;
 }
-template <typename... Include, typename... Exclude>
-inline ecs::view<sizeof...(Include), sizeof...(Exclude)> ecs::registry::view(exclude<Exclude...>) const {
-    ECS_PROFILE;
-    return ecs::make_view(std::tuple(&storage<Include>(0)...), std::tuple(&storage<Exclude>(0)...));
-}
 inline ecs::registry::iterator ecs::registry::begin() const {
     return mEntityManager.begin();
 }
@@ -695,6 +787,7 @@ inline ecs::registry::iterator ecs::registry::end() const {
 template <ecs::size_t Include, ecs::size_t Exclude>
 inline constexpr ecs::view<Include, Exclude>::view(std::array<view_iterable const *, Include> &&include,
     std::array<view_iterable const *, Exclude> &&exclude) noexcept: mInclude(std::move(include)), mExclude(std::move(exclude)) {
+    ECS_PROFILE;
     if constexpr(Include > 1u) {
         std::sort(mInclude.begin(), mInclude.end(), [](auto const &lhs, auto const &rhs) { return lhs->size() < rhs->size(); });
     }
@@ -735,7 +828,7 @@ inline typename ecs::view<Include, Exclude>::iterator &ecs::view<Include, Exclud
     // Storage performed swap and pop and the current iterator contains new valid entity.
     // Do not increment in this case.
     // Ugly fix for range based for loops. The iterator is incremented before the bounds check.
-    // ________________________ 
+    // ________________________
     if(mIt != mSmallest->size() && mValue == mSmallest->begin()[mIt]) {
         ++mIt;
     }
@@ -797,13 +890,18 @@ inline ecs::size_t ecs::view<Include, Exclude>::size() const noexcept {
 
 // Syntax sugar
 
+template <typename... Include, typename... Exclude>
+inline ecs::view<sizeof...(Include), sizeof...(Exclude)> ecs::registry::view(exclude<Exclude...>) const {
+    ECS_PROFILE;
+    return ecs::make_view(std::tuple(&storage<Include>()...), std::tuple(&storage<Exclude>()...));
+}
 template <typename... Components_t>
 inline ecs::entity ecs::registry::create(Components_t &&...components) {
     ECS_PROFILE;
 
     entity entity = create();
 
-    (storage<std::decay_t<Components_t>>(0).emplace(entity, std::forward<Components_t>(components)), ...);
+    (storage<std::decay_t<Components_t>>().emplace(entity, std::forward<Components_t>(components)), ...);
 
     return entity;
 }
@@ -816,7 +914,7 @@ inline bool ecs::registry::contains(entity const &entity) const {
     ECS_PROFILE;
     ECS_ASSERT(valid(entity), "Invalid entity identifier");
 
-    return storage<T>(0).contains(entity);
+    return storage<T>().contains(entity);
 }
 template <typename T>
 inline T &ecs::registry::get(entity const &entity) {
@@ -824,7 +922,7 @@ inline T &ecs::registry::get(entity const &entity) {
     ECS_ASSERT(valid(entity), "Invalid entity identifier");
     ECS_ASSERT(contains<T>(entity), "Component to get is not added");
 
-    return storage<T>(0).get(entity);
+    return storage<T>().get(entity);
 }
 template <typename T>
 inline T const &ecs::registry::get(entity const &entity) const {
@@ -832,7 +930,7 @@ inline T const &ecs::registry::get(entity const &entity) const {
     ECS_ASSERT(valid(entity), "Invalid entity identifier");
     ECS_ASSERT(contains<T>(entity), "Component to get is not added");
 
-    return storage<T>(0).get(entity);
+    return storage<T>().get(entity);
 }
 template <typename T>
 inline void ecs::registry::erase(entity const &entity) {
@@ -840,7 +938,7 @@ inline void ecs::registry::erase(entity const &entity) {
     ECS_ASSERT(valid(entity), "Invalid entity identifier");
     ECS_ASSERT(contains<T>(entity), "Component to remove is not added");
 
-    storage<T>(0).erase(entity);
+    storage<T>().erase(entity);
 }
 template <typename T, class... Args>
 inline T &ecs::registry::emplace(entity const &entity, Args &&...args) {
@@ -848,7 +946,7 @@ inline T &ecs::registry::emplace(entity const &entity, Args &&...args) {
     ECS_ASSERT(valid(entity), "Invalid entity identifier");
     ECS_ASSERT(!contains<T>(entity), "Component to emplace already added");
 
-    return storage<T>(0).emplace(entity, std::forward<Args>(args)...);
+    return storage<T>().emplace(entity, std::forward<Args>(args)...);
 }
 
 /*! \endcond */

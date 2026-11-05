@@ -42,6 +42,8 @@ struct sparse_set_copy_base<T, false> {
     sparse_set_copy_base &operator=(sparse_set_copy_base const &) = delete;
 };
 
+class sparse_set_sentinel { };
+
 /// @brief A sparse set implementation.
 /// @tparam dense_t The type of densely stored data.
 template <typename dense_t, typename allocator_t = std::allocator<dense_t>>
@@ -77,7 +79,7 @@ public:
     /// @param capacity The optional capacity to reserve.
     /// @param pageSize Number of indices in one sparse page. Bigger page size reduces fragmentation but increases potential memory waste.
     sparse_set(ecs::size_t capacity = 10, std::uint32_t pageSize = 256);
-    ~sparse_set() = default;
+    ~sparse_set();
     sparse_set(sparse_set const &other);
     sparse_set(sparse_set &&other) noexcept;
     sparse_set &operator=(sparse_set const &other);
@@ -148,12 +150,10 @@ public:
 
     /// @brief The cbegin of the sparse set.
     const_iterator begin() const noexcept;
-    /// @brief The cend of the sparse set.
-    const_iterator end() const noexcept;
     /// @brief The begin of the sparse set.
     iterator begin() noexcept;
-    /// @brief The end of the sparse set.
-    iterator end() noexcept;
+    /// @brief The end sentinel.
+    sparse_set_sentinel end() const noexcept;
 private:
     /// @brief The [sparse; dense] pair iterator.
     template <typename owner_t, typename reference_second_t>
@@ -167,59 +167,66 @@ private:
         using pointer = void;
         using reference = value_type;
 
-        inline basic_iterator() noexcept: mOwner(nullptr), mIndex(0) {
+        inline constexpr basic_iterator() noexcept: mOwner(nullptr), mIndex(0) {
         }
-        inline basic_iterator(owner_t *owner, ecs::size_t index) noexcept: mOwner(owner), mIndex(index) {
+        inline constexpr basic_iterator(owner_t *owner, ecs::size_t index) noexcept: mOwner(owner), mIndex(index) {
         }
 
         inline reference operator*() const noexcept {
             return { mOwner->mDenseToSparse[mIndex], mOwner->mDense[mIndex] };
         }
 
-        inline basic_iterator &operator++() noexcept {
+        inline constexpr basic_iterator &operator++() noexcept {
             ++mIndex;
             return *this;
         }
-        inline basic_iterator operator++(int) noexcept {
+        inline constexpr basic_iterator operator++(int) noexcept {
             basic_iterator tmp = *this;
             ++mIndex;
             return tmp;
         }
 
-        inline basic_iterator &operator--() noexcept {
+        inline constexpr basic_iterator &operator--() noexcept {
             --mIndex;
             return *this;
         }
-        inline basic_iterator operator--(int) noexcept {
+        inline constexpr basic_iterator operator--(int) noexcept {
             basic_iterator tmp = *this;
             --mIndex;
             return tmp;
         }
 
-        inline basic_iterator &operator+=(difference_type n) noexcept {
+        inline constexpr basic_iterator &operator+=(difference_type n) noexcept {
             mIndex += n;
             return *this;
         }
-        inline basic_iterator operator+(difference_type n) const noexcept {
+        inline constexpr basic_iterator operator+(difference_type n) const noexcept {
             return basic_iterator(mOwner, mIndex + n);
         }
-        inline basic_iterator &operator-=(difference_type n) noexcept {
+        inline constexpr basic_iterator &operator-=(difference_type n) noexcept {
             mIndex -= n;
             return *this;
         }
-        inline basic_iterator operator-(difference_type n) const noexcept {
+        inline constexpr basic_iterator operator-(difference_type n) const noexcept {
             return basic_iterator(mOwner, mIndex - n);
         }
 
-        inline difference_type operator-(basic_iterator const &other) const noexcept {
+        inline constexpr difference_type operator-(basic_iterator const &other) const noexcept {
             return static_cast<difference_type>(mIndex) - static_cast<difference_type>(other.mIndex);
         }
 
-        inline bool operator==(basic_iterator const &o) const noexcept {
+        inline constexpr bool operator==(basic_iterator const &o) const noexcept {
             return mOwner == o.mOwner && mIndex == o.mIndex;
         }
-        inline bool operator!=(basic_iterator const &o) const noexcept {
+        inline constexpr bool operator!=(basic_iterator const &o) const noexcept {
             return !(*this == o);
+        }
+
+        inline bool operator==(sparse_set_sentinel const &) const noexcept {
+            return mIndex >= mOwner->size();
+        }
+        inline bool operator!=(sparse_set_sentinel const &s) const noexcept {
+            return !(*this == s);
         }
 
         inline reference operator[](difference_type n) const noexcept {
@@ -227,6 +234,11 @@ private:
         }
     };
 };
+
+template <typename It>
+bool operator==(sparse_set_sentinel const &s, It const &it) noexcept;
+template <typename It>
+bool operator!=(sparse_set_sentinel const &s, It const &it) noexcept;
 
 /// @brief An alias for sparse_set::null.
 constexpr auto SPARSE_SET_NULL = sparse_set<int>::null;
@@ -265,6 +277,10 @@ inline ecs::sparse_set<dense_t, allocator_t>::sparse_set(ecs::size_t capacity, s
     reserve(capacity);
 }
 template <typename dense_t, typename allocator_t>
+inline ecs::sparse_set<dense_t, allocator_t>::~sparse_set() {
+}
+
+template <typename dense_t, typename allocator_t>
 inline ecs::sparse_set<dense_t, allocator_t>::sparse_set(sparse_set const &other) {
     ECS_PROFILE;
     *this = other;
@@ -300,7 +316,8 @@ inline ecs::sparse_set<dense_t, allocator_t> &ecs::sparse_set<dense_t, allocator
 }
 template <typename dense_t, typename allocator_t>
 template <class... Args>
-inline typename ecs::sparse_set<dense_t, allocator_t>::dense_type &ecs::sparse_set<dense_t, allocator_t>::emplace(sparse_type const &sparse, Args &&...args) {
+inline typename ecs::sparse_set<dense_t, allocator_t>::dense_type &
+ecs::sparse_set<dense_t, allocator_t>::emplace(sparse_type const &sparse, Args &&...args) {
     ECS_PROFILE;
     ECS_ASSERT(getDenseIndex(sparse) == null, "Element added to the same sparse index more than once");
 
@@ -401,16 +418,12 @@ inline typename ecs::sparse_set<dense_t, allocator_t>::const_iterator ecs::spars
     return { this, 0 };
 }
 template <typename dense_t, typename allocator_t>
-inline typename ecs::sparse_set<dense_t, allocator_t>::const_iterator ecs::sparse_set<dense_t, allocator_t>::end() const noexcept {
-    return { this, mDense.size() };
+inline ecs::sparse_set_sentinel ecs::sparse_set<dense_t, allocator_t>::end() const noexcept {
+    return ecs::sparse_set_sentinel{ };
 }
 template <typename dense_t, typename allocator_t>
 inline typename ecs::sparse_set<dense_t, allocator_t>::iterator ecs::sparse_set<dense_t, allocator_t>::begin() noexcept {
     return { this, 0 };
-}
-template <typename dense_t, typename allocator_t>
-inline typename ecs::sparse_set<dense_t, allocator_t>::iterator ecs::sparse_set<dense_t, allocator_t>::end() noexcept {
-    return { this, mDense.size() };
 }
 template <typename dense_t, typename allocator_t>
 inline bool ecs::sparse_set<dense_t, allocator_t>::empty() const noexcept {
@@ -423,4 +436,12 @@ inline ecs::size_t ecs::sparse_set<dense_t, allocator_t>::size() const noexcept 
 template <typename dense_t, typename allocator_t>
 inline dense_t *ecs::sparse_set<dense_t, allocator_t>::pDense() noexcept {
     return mDense.data();
+}
+template <typename It>
+inline bool ecs::operator==(sparse_set_sentinel const &s, It const &it) noexcept {
+    return it == s;
+}
+template <typename It>
+inline bool ecs::operator!=(sparse_set_sentinel const &s, It const &it) noexcept {
+    return it != s;
 }
