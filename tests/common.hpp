@@ -66,10 +66,10 @@ inline void addEntities(ecs::registry &reg, ecs::size_t size = 10'000) {
         if(dist(rng)) reg.emplace<Velocity>(e, 3.0f, 4.0f);
         if(dist(rng)) reg.emplace<Health>(e, 99u);
         if(dist(rng)) reg.emplace<Tag>(e, "this is a tag");
-        if(dist(rng)) reg.storage<Position>("named"_hs).emplace(e, 5.0f, 6.0f);
-        if(dist(rng)) reg.storage<Velocity>("named"_hs).emplace(e, 7.0f, 8.0f);
-        if(dist(rng)) reg.storage<Health>("named1"_hs).emplace(e, 98u);
-        if(dist(rng)) reg.storage<Tag>("named2"_hs).emplace(e, "this is another tag");
+        if(dist(rng)) reg.storage<Position>("position"_hs).emplace(e, 5.0f, 6.0f);
+        if(dist(rng)) reg.storage<Velocity>("velocity"_hs).emplace(e, 7.0f, 8.0f);
+        if(dist(rng)) reg.storage<Health>("health"_hs).emplace(e, 98u);
+        if(dist(rng)) reg.storage<Tag>("tag"_hs).emplace(e, "this is another tag");
         reg.emplace<Original>(e);
         // clang-format on
     }
