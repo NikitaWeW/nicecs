@@ -43,8 +43,8 @@ TEST_CASE("ecs::registry benchmarks", "[benchmark][ecs][ecs::registry]") {
         BENCHMARK("view (100'000)") {
             // clang-format off
             auto v = ecs::make_view(
-                std::tuple(&reg.storage<Position>(), &reg.storage<Velocity>(), &reg.storage<Position>("named"_hs), &reg.storage<Velocity>("named"_hs)),
-                std::tuple(&reg.storage<Health>(), &reg.storage<Tag>(), &reg.storage<Health>("named1"_hs), &reg.storage<Tag>("named2"_hs))
+                std::tuple(&reg.storage<Position>(), &reg.storage<Velocity>(), &reg.storage<Position>("position"_hs), &reg.storage<Velocity>("velocity"_hs)),
+                std::tuple(&reg.storage<Health>(), &reg.storage<Tag>(), &reg.storage<Health>("health"_hs), &reg.storage<Tag>("tag"_hs))
             );
             // clang-format on
 
