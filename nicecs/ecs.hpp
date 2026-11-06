@@ -176,6 +176,9 @@ public:
     /// @brief Returns a pointer to the component data.
     virtual void const *data(entity const &entity) const = 0;
 
+    /// @brief Returns the size of stored component type in bytes.
+    virtual ecs::size_t component_size() const = 0;
+
     /// @brief Erase an entity's component.
     /// @param entity An entity identifier.
     virtual void erase(entity const &entity) = 0;
@@ -327,6 +330,9 @@ public:
     void *data(entity const &entity) override;
     /// @copydoc ecs::component_storage::data
     void const *data(entity const &entity) const override;
+
+    /// @copydoc ecs::component_storage::component_size
+    ecs::size_t component_size() const override;
 
     /// @copydoc ecs::component_storage::erase
     void erase(entity const &entity) override;
@@ -566,6 +572,10 @@ void *ecs::component_array<T>::data(entity const &entity) {
 template <typename T>
 void const *ecs::component_array<T>::data(entity const &entity) const {
     return &sparse_set<T>::get(entity);
+}
+template <typename T>
+ecs::size_t ecs::component_array<T>::component_size() const {
+    return sizeof(T);
 }
 template <typename T>
 inline void ecs::component_array<T>::erase(entity const &entity) {

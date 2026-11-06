@@ -7,6 +7,7 @@ Actually, its just an EC (entity component), as the library provides no systems 
 - Sparse set storage (ecs::sparse_set available for use in nicecs/sparse_set.hpp).
 - Can theoretically be used with metaprogramming system.
 - Fast views (smallest pool optimization).
+- Access to type erased component storage as well as typed.
 
 ---
 

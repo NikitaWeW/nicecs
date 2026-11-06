@@ -572,11 +572,12 @@ TEST_CASE("Registry storage", "[ecs][ecs::registry]") {
 
         // Maybe query reflection here...
         if(id == "position2"_hs) {
-            auto const &pos = *static_cast<Position *>(storage->data(e0));
-            REQUIRE(pos == Position{ 5.0f, 6.5f });
+            REQUIRE(*static_cast<Position *>(storage->data(e0)) == Position{ 5.0f, 6.5f });
+            REQUIRE(storage->component_size() == sizeof(Position));
         } else if(id == ecs::get_component_id<Position>()) {
             auto const &pos = *static_cast<Position *>(storage->data(e0));
             REQUIRE(pos == Position{ 3.0f, 4.5f });
+            REQUIRE(storage->component_size() == sizeof(Position));
         }
     }
 }
