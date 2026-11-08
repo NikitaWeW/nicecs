@@ -191,7 +191,7 @@ TEST_CASE("EC tests", "[ecs][ecs::registry]") {
         Position copythis{ 4, 2 };
         ecs::entity e4 = reg.create(copythis);
         REQUIRE(reg.size() == 4);
-        uint regSize = 0;
+        std::uint32_t regSize = 0;
         for(auto it = reg.begin(); it != reg.end(); ++it) {
             ++regSize;
             REQUIRE(reg.valid(*it));
@@ -466,8 +466,8 @@ TEST_CASE("Views", "[ecs][ecs::view]") {
     }
 
     SECTION("Range based for loops with storage modification") {
-        uint num = 20;
-        for(uint i = 0; i < num; ++i) {
+        std::uint32_t num = 20;
+        for(std::uint32_t i = 0; i < num; ++i) {
             reg.create<Tag>();
         }
 
@@ -487,8 +487,8 @@ TEST_CASE("Views", "[ecs][ecs::view]") {
         }
         REQUIRE(distance(reg.view<Tag>()) == num);
 
-        uint size1 = 0;
-        uint size2 = 0;
+        std::uint32_t size1 = 0;
+        std::uint32_t size2 = 0;
 
         for(auto e : reg.view<Position>()) {
             if(reg.contains<Tag>(e)) {
@@ -531,7 +531,7 @@ TEST_CASE("Registry example", "[ecs][ecs::registry]") {
 
     ecs::view view = registry.view<Position, Velocity>(ecs::exclude<Tag>{ });
 
-    uint size = 0;
+    std::uint32_t size = 0;
     for(auto const &e : view) {
         ++size;
         registry.get<Position>(e).x += registry.get<Velocity>(e).dx; // component to get is not added
